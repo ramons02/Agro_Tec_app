@@ -11,34 +11,21 @@ function claudeGlobalDoHost(): ClaudeGlobal | undefined {
 }
 
 /**
- * Exportação client-side simples (RF034, provisório). Fora do Artifact (rodando
- * `npm run dev` ou um build real), baixa via Blob + <a download>. Dentro do
- * Artifact publicado, esse download é bloqueado pelo sandbox do visualizador —
- * então tenta primeiro a capability `downloads` (window.claude.use('downloads')),
- * que pede confirmação explícita ao viewer antes de salvar.
+ * Salva um arquivo já pronto (ex.: o CSV vindo de `GET
+ * /dashboard/plantio/exportar.csv`, feature 015) no dispositivo do usuário.
+ * Fora do Artifact (rodando `npm run dev` ou um build real), baixa via Blob +
+ * `<a download>`. Dentro do Artifact publicado, esse download é bloqueado
+ * pelo sandbox do visualizador — então tenta primeiro a capability
+ * `downloads` (`window.claude.use('downloads')`), que pede confirmação
+ * explícita ao viewer antes de salvar.
  */
-export async function exportarCsv(linhas: Record<string, string | number>[], nomeArquivo: string) {
-  if (linhas.length === 0) return
-
-  const cabecalhos = Object.keys(linhas[0])
-
-  function escapar(valor: string | number) {
-    const texto = String(valor)
-    return /[",\n;]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto
-  }
-
-  const corpo = [cabecalhos, ...linhas.map((linha) => cabecalhos.map((c) => linha[c]))]
-    .map((colunas) => colunas.map(escapar).join(';'))
-    .join('\n')
-  // BOM no início para o Excel reconhecer UTF-8 e não corromper acentos.
-  const conteudo = '﻿' + corpo
-
+export async function salvarArquivo(blob: Blob, nomeArquivo: string) {
   const claude = claudeGlobalDoHost()
   if (claude?.use) {
     try {
       const downloads = await claude.use('downloads')
       if (downloads) {
-        await downloads.save({ filename: nomeArquivo, data: conteudo })
+        await downloads.save({ filename: nomeArquivo, data: await blob.text() })
         return
       }
       // downloads === null: capability indisponível nesta view — cai pro fallback abaixo.
@@ -50,7 +37,6 @@ export async function exportarCsv(linhas: Record<string, string | number>[], nom
     }
   }
 
-  const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

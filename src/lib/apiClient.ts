@@ -94,6 +94,22 @@ export async function apiDelete(caminho: string): Promise<void> {
   await tratarResposta(resposta)
 }
 
+/** Para endpoints que devolvem um arquivo (ex.: CSV), não o envelope JSON
+ * padrão — usado pela exportação (feature 015). */
+export async function apiGetBlob(caminho: string): Promise<Blob> {
+  const resposta = await fetch(`${BASE_URL}${caminho}`, { headers: cabecalhos(false) })
+  if (!resposta.ok) {
+    if (resposta.status === 401) definirToken(null)
+    const corpo = (await resposta.json().catch(() => null)) as EnvelopeErro | null
+    throw new ApiError(
+      corpo?.codigo ?? resposta.status,
+      corpo?.mensagem ?? 'Erro inesperado ao falar com a API.',
+      corpo?.detalhes ?? null,
+    )
+  }
+  return resposta.blob()
+}
+
 export async function apiUpload<T>(caminho: string, formData: FormData): Promise<T> {
   const resposta = await fetch(`${BASE_URL}${caminho}`, {
     method: 'POST',

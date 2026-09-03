@@ -3,7 +3,8 @@ import { BadgeStatusPlantio } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, CardBody } from '../components/ui/Card'
 import { GraficoUmidade } from '../components/GraficoUmidade'
-import { exportarCsv } from '../lib/exportarCsv'
+import { apiGetBlob, ApiError } from '../lib/apiClient'
+import { salvarArquivo } from '../lib/exportarCsv'
 import { gerarEnriquecimentoSimulado } from '../lib/enriquecimentoSimulado'
 import { useAppData } from '../store/AppDataContext'
 import type { StatusPlantio } from '../types'
@@ -19,6 +20,8 @@ export function DashboardPlantioPage() {
   const { propriedades, talhoes, carregando, erro } = useAppData()
   const [propriedadeId, setPropriedadeId] = useState<string>('TODAS')
   const [status, setStatus] = useState<StatusPlantio | 'TODOS'>('TODOS')
+  const [exportando, setExportando] = useState(false)
+  const [erroExportacao, setErroExportacao] = useState<string | null>(null)
 
   const talhoesFiltrados = useMemo(
     () =>
@@ -36,20 +39,25 @@ export function DashboardPlantioPage() {
     VERMELHO: talhoes.filter((t) => t.statusPlantio === 'VERMELHO').length,
   }
 
-  function handleExportarCsv() {
-    const linhas = talhoesFiltrados.map((talhao) => {
-      const propriedade = propriedades.find((p) => p.id === talhao.propriedadeId)
-      return {
-        Propriedade: propriedade?.nome ?? '',
-        Talhao: talhao.nome,
-        'Area (ha)': talhao.areaHa,
-        Solo: talhao.tipoSolo ?? '',
-        Status: talhao.statusPlantio ?? 'SEM_CALCULO',
-        'Armazenamento (mm)': talhao.armazenamentoMm ?? '',
-        '% da CAD': talhao.percentualCad ?? '',
-      }
-    })
-    exportarCsv(linhas, `plantio-agroclima-${new Date().toISOString().slice(0, 10)}.csv`)
+  async function handleExportarCsv() {
+    setErroExportacao(null)
+    setExportando(true)
+    try {
+      const parametros = new URLSearchParams()
+      if (propriedadeId !== 'TODAS') parametros.set('propriedade_id', propriedadeId)
+      if (status !== 'TODOS') parametros.set('status', status)
+      const query = parametros.toString()
+
+      // Vem do backend (feature 015), não montado no cliente — reflete
+      // exatamente o filtro aplicado, sem o limite de paginação do
+      // AppDataContext.
+      const blob = await apiGetBlob(`/api/v1/dashboard/plantio/exportar.csv${query ? `?${query}` : ''}`)
+      await salvarArquivo(blob, `plantio-agroclima-${new Date().toISOString().slice(0, 10)}.csv`)
+    } catch (excecao) {
+      setErroExportacao(excecao instanceof ApiError ? excecao.message : 'Falha ao exportar o CSV.')
+    } finally {
+      setExportando(false)
+    }
   }
 
   return (
@@ -64,14 +72,17 @@ export function DashboardPlantioPage() {
         <Button
           variant="secondary"
           className="shrink-0"
-          disabled={talhoesFiltrados.length === 0}
-          onClick={handleExportarCsv}
+          disabled={talhoesFiltrados.length === 0 || exportando}
+          onClick={() => void handleExportarCsv()}
         >
-          Exportar CSV
+          {exportando ? 'Exportando…' : 'Exportar CSV'}
         </Button>
       </div>
 
       {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+      {erroExportacao && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroExportacao}</p>
+      )}
       {carregando && talhoes.length === 0 && (
         <p className="text-sm text-slate-400">Carregando talhões…</p>
       )}
@@ -149,7 +160,7 @@ export function DashboardPlantioPage() {
 
                 <div className="border-t border-slate-100 pt-2">
                   <p className="mb-1 text-xs text-slate-400">
-                    Últimos 10 dias (simulado — feature 012 ainda não implementada)
+                    Últimos 10 dias (simulado — sem série histórica na API)
                   </p>
                   <GraficoUmidade
                     historico={historicoUmidade}
