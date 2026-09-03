@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { apiGet, ApiError } from './apiClient'
-import type { ClimaAtual, EstacaoProxima, PulverizacaoResultado, RecomendacaoResultado } from '../types'
+import { pontoGeoJSONParaLeaflet } from './geo'
+import type {
+  ClimaAtual,
+  EstacaoMapa,
+  EstacaoProxima,
+  PulverizacaoResultado,
+  RecomendacaoResultado,
+} from '../types'
 
 interface EstadoConsulta<T> {
   dados: T | null
@@ -212,6 +219,62 @@ export function useRecomendacao(talhaoId: string | null): EstadoConsulta<Recomen
       cancelado = true
     }
   }, [talhaoId])
+
+  return estado
+}
+
+interface DadosMapaApi {
+  estacoes: {
+    codigo: string
+    municipio: string
+    posicao_geojson: { type: 'Point'; coordinates: [number, number] }
+    ultima_medicao: { chuva_mm: number | null; vento_kmh: number | null; fonte_dados: string } | null
+  }[]
+}
+
+/** Todas as estações do mapa (feature 007, FR-001) — visão geral, diferente
+ * de `useEstacoesProximas` (as 3 mais próximas de um talhão específico). */
+export function useEstacoesDoMapa(ativo: boolean): EstadoConsulta<EstacaoMapa[]> {
+  const [estado, setEstado] = useState<EstadoConsulta<EstacaoMapa[]>>({
+    dados: null,
+    carregando: false,
+    erro: null,
+  })
+
+  useEffect(() => {
+    if (!ativo) return
+    let cancelado = false
+    setEstado({ dados: null, carregando: true, erro: null })
+
+    apiGet<DadosMapaApi>('/api/v1/mapa/dados')
+      .then((resposta) => {
+        if (cancelado) return
+        setEstado({
+          dados: resposta.estacoes.map((e) => ({
+            codigo: e.codigo,
+            municipio: e.municipio,
+            posicao: pontoGeoJSONParaLeaflet(e.posicao_geojson),
+            ultimaMedicao: e.ultima_medicao
+              ? {
+                  chuvaMm: e.ultima_medicao.chuva_mm,
+                  ventoKmh: e.ultima_medicao.vento_kmh,
+                  fonteDados: e.ultima_medicao.fonte_dados,
+                }
+              : null,
+          })),
+          carregando: false,
+          erro: null,
+        })
+      })
+      .catch(() => {
+        if (cancelado) return
+        setEstado({ dados: null, carregando: false, erro: 'Falha ao buscar estações do mapa.' })
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [ativo])
 
   return estado
 }

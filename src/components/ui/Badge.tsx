@@ -7,7 +7,7 @@ const STATUS_PLANTIO_STYLE: Record<StatusPlantio, string> = {
   VERMELHO: 'bg-red-50 text-red-700 ring-red-600/20',
 }
 
-const STATUS_PLANTIO_LABEL: Record<StatusPlantio, string> = {
+export const STATUS_PLANTIO_LABEL: Record<StatusPlantio, string> = {
   VERDE: 'Ideal para plantio',
   AMARELO: 'Atenção',
   VERMELHO: 'Risco',

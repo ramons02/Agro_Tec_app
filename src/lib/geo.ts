@@ -8,6 +8,13 @@ function anelParaLeaflet(anel: Anel): [number, number][] {
   return anel.map(([lng, lat]) => [lat, lng])
 }
 
+/** Converte um GeoJSON `{type: "Point", coordinates: [lng, lat]}` (ex.:
+ * posição de estação) para o par `[lat, lng]` que o Leaflet espera. */
+export function pontoGeoJSONParaLeaflet(ponto: { coordinates: [number, number] }): [number, number] {
+  const [lng, lat] = ponto.coordinates
+  return [lat, lng]
+}
+
 /** Extrai o anel externo do primeiro polígono (Polygon ou MultiPolygon) para
  * desenhar no mapa. Um MultiPolygon com várias partes desconexas (Escopo V3)
  * mostra só a primeira parte aqui — não há hoje um `<Polygon>` do Leaflet que

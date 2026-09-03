@@ -89,6 +89,21 @@ export interface RecomendacaoResultado {
   aviso: string
 }
 
+/** Espelha uma estação em `GET /mapa/dados` (feature 007) — visão geral do
+ * mapa, com a última medição para o popup (FR-003). Diferente de
+ * `EstacaoProxima`: aqui não há conceito de "mais próxima de um talhão", é a
+ * lista completa de estações (infraestrutura pública, sem RBAC). */
+export interface EstacaoMapa {
+  codigo: string
+  municipio: string
+  posicao: [number, number] // [lat, lng]
+  ultimaMedicao: {
+    chuvaMm: number | null
+    ventoKmh: number | null
+    fonteDados: string
+  } | null
+}
+
 /** Dados só usados para alimentar o gráfico de umidade (`GraficoUmidade`) —
  * não há endpoint de série histórica de umidade do solo na API; a
  * Recomendação (feature 012) em si já é real, vem de `useRecomendacao`. */

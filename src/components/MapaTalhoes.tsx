@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { MapContainer, Marker, Polygon, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import type { EstacaoProxima, Talhao } from '../types'
-import { STATUS_PLANTIO_COR_MAPA } from './ui/Badge'
+import type { EstacaoMapa, Talhao } from '../types'
+import { STATUS_PLANTIO_COR_MAPA, STATUS_PLANTIO_LABEL } from './ui/Badge'
 
 const estacaoIcon = L.divIcon({
   className: '',
@@ -17,7 +17,7 @@ const estacaoIcon = L.divIcon({
 
 interface MapaTalhoesProps {
   talhoes: Talhao[]
-  estacoesFoco: EstacaoProxima[]
+  estacoes: EstacaoMapa[]
   onSelecionarTalhao: (talhao: Talhao) => void
   talhaoFoco: Talhao
 }
@@ -25,9 +25,9 @@ interface MapaTalhoesProps {
 /**
  * Talhões têm poucas centenas de metros de lado: sem isto, o mapa abre num
  * zoom que mostra a região inteira e os polígonos somem em meia dúzia de
- * pixels. Enquadra só o talhão em foco — as estações mais próximas (Escopo
- * V3, até 3, podem estar a dezenas de km) NÃO entram no cálculo do zoom, ou
- * uma estação distante forçaria a vista a se afastar até incluí-la.
+ * pixels. Enquadra só o talhão em foco — as estações (feature 007, todas do
+ * Pará) podem estar a dezenas ou centenas de km e NÃO entram no cálculo do
+ * zoom, ou uma delas forçaria a vista a se afastar até incluí-la.
  */
 function FocoTalhao({ talhao }: { talhao: Talhao }) {
   const map = useMap()
@@ -42,12 +42,7 @@ function FocoTalhao({ talhao }: { talhao: Talhao }) {
   return null
 }
 
-export function MapaTalhoes({
-  talhoes,
-  estacoesFoco,
-  onSelecionarTalhao,
-  talhaoFoco,
-}: MapaTalhoesProps) {
+export function MapaTalhoes({ talhoes, estacoes, onSelecionarTalhao, talhaoFoco }: MapaTalhoesProps) {
   return (
     <MapContainer center={talhaoFoco.centro} zoom={15} className="h-full w-full">
       <TileLayer
@@ -76,19 +71,28 @@ export function MapaTalhoes({
                 {talhao.areaHa.toFixed(1)} ha
                 {talhao.tipoSolo ? ` · solo ${talhao.tipoSolo.toLowerCase()}` : ''}
               </p>
+              <p>{talhao.statusPlantio ? STATUS_PLANTIO_LABEL[talhao.statusPlantio] : 'Sem status calculado ainda'}</p>
             </div>
           </Popup>
         </Polygon>
       ))}
 
-      {estacoesFoco.map((estacao) => (
-        <Marker key={estacao.estacaoCodigo} position={estacao.posicao} icon={estacaoIcon}>
+      {estacoes.map((estacao) => (
+        <Marker key={estacao.codigo} position={estacao.posicao} icon={estacaoIcon}>
           <Popup>
             <div className="space-y-1 text-sm">
               <p className="font-semibold">
-                Estação {estacao.estacaoCodigo} — {estacao.municipio}
+                Estação {estacao.codigo} — {estacao.municipio}
               </p>
-              <p>{estacao.distanciaKm.toFixed(1)} km do talhão selecionado</p>
+              {estacao.ultimaMedicao ? (
+                <>
+                  <p>Chuva: {estacao.ultimaMedicao.chuvaMm !== null ? `${estacao.ultimaMedicao.chuvaMm.toFixed(1)} mm` : '—'}</p>
+                  <p>Vento: {estacao.ultimaMedicao.ventoKmh !== null ? `${estacao.ultimaMedicao.ventoKmh.toFixed(1)} km/h` : '—'}</p>
+                  <p className="text-xs text-slate-500">Fonte: {estacao.ultimaMedicao.fonteDados}</p>
+                </>
+              ) : (
+                <p>Sem medição recente.</p>
+              )}
             </div>
           </Popup>
         </Marker>
