@@ -14,6 +14,7 @@ interface AuthContextValue {
   autenticado: boolean
   papel: Papel | null
   entrar: (email: string, senha: string) => Promise<void>
+  registrar: (nome: string, email: string, senha: string, papel: Papel) => Promise<void>
   sair: () => void
 }
 
@@ -35,6 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(CHAVE_PAPEL, dados.papel)
         setToken(dados.token)
         setPapel(dados.papel)
+      },
+      registrar: async (nome: string, email: string, senha: string, papel: Papel) => {
+        await apiPost('/api/v1/auth/registro', { nome, email, senha, papel })
       },
       sair: () => {
         definirToken(null)

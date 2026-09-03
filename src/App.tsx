@@ -1,6 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
 import { LoginPage } from './pages/LoginPage'
+import { CadastroContaPage } from './pages/CadastroContaPage'
+import { EsqueciSenhaPage } from './pages/EsqueciSenhaPage'
+import { RedefinirSenhaPage } from './pages/RedefinirSenhaPage'
 import { MapaPage } from './pages/MapaPage'
 import { PropriedadesPage } from './pages/PropriedadesPage'
 import { CadastroTalhaoPage } from './pages/CadastroTalhaoPage'
@@ -17,6 +20,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/cadastro" element={<CadastroContaPage />} />
+      <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
+      <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
 
       <Route
         element={

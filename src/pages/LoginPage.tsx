@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { ApiError } from '../lib/apiClient'
 import { useAuth } from '../store/AuthContext'
@@ -85,10 +85,14 @@ export function LoginPage() {
             {enviando ? 'Entrando…' : 'Entrar'}
           </Button>
 
-          <p className="text-center text-xs text-slate-400">
-            HU-01: autenticação via token JWT — o papel de acesso (HU-14) vem do usuário
-            cadastrado na API.
-          </p>
+          <div className="flex items-center justify-between text-xs">
+            <Link to="/esqueci-senha" className="font-medium text-emerald-700 hover:underline">
+              Esqueci minha senha
+            </Link>
+            <Link to="/cadastro" className="font-medium text-emerald-700 hover:underline">
+              Criar conta
+            </Link>
+          </div>
         </form>
       </div>
     </div>
