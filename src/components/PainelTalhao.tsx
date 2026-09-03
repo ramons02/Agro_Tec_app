@@ -1,6 +1,5 @@
 import { gerarEnriquecimentoSimulado } from '../lib/enriquecimentoSimulado'
-import { useClimaAtual, usePulverizacao } from '../lib/apiHooks'
-import { gerarRecomendacao } from '../lib/recomendacao'
+import { useClimaAtual, usePulverizacao, useRecomendacao } from '../lib/apiHooks'
 import type { EstacaoProxima, Talhao } from '../types'
 import { BadgeStatusPlantio, BadgeStatusPulverizacao } from './ui/Badge'
 import { Card, CardBody, CardHeader } from './ui/Card'
@@ -15,11 +14,11 @@ interface PainelTalhaoProps {
 export function PainelTalhao({ talhao, estacaoMaisProxima }: PainelTalhaoProps) {
   const { dados: clima } = useClimaAtual(talhao.id)
   const { dados: pulverizacao } = usePulverizacao(talhao.id)
+  const { dados: recomendacao } = useRecomendacao(talhao.id)
   const { umidadeSolo0_7cm, capacidadeCampo, historicoUmidade } = gerarEnriquecimentoSimulado(
     talhao.id,
     talhao.statusPlantio,
   )
-  const recomendacao = gerarRecomendacao(talhao.statusPlantio, historicoUmidade, pulverizacao)
 
   return (
     <Card className="flex h-full flex-col overflow-hidden">
@@ -36,7 +35,11 @@ export function PainelTalhao({ talhao, estacaoMaisProxima }: PainelTalhaoProps) 
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
             O que fazer agora
           </h3>
-          <PainelRecomendacao recomendacao={recomendacao} />
+          {recomendacao ? (
+            <PainelRecomendacao recomendacao={recomendacao} />
+          ) : (
+            <p className="text-sm text-slate-400">Carregando recomendação…</p>
+          )}
         </section>
 
         <section>

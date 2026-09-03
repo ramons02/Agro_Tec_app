@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiGet, ApiError } from './apiClient'
-import type { ClimaAtual, EstacaoProxima, PulverizacaoResultado } from '../types'
+import type { ClimaAtual, EstacaoProxima, PulverizacaoResultado, RecomendacaoResultado } from '../types'
 
 interface EstadoConsulta<T> {
   dados: T | null
@@ -172,6 +172,46 @@ export function usePulverizacao(talhaoId: string | null, versao = 0): EstadoCons
       cancelado = true
     }
   }, [talhaoId, versao])
+
+  return estado
+}
+
+interface RecomendacaoApi {
+  texto: string
+  prioridade: RecomendacaoResultado['prioridade']
+  aviso: string
+}
+
+/** Recomendação de próximo passo do talhão (feature 012) — combina status de
+ * plantio e pulverização, calculado no backend. */
+export function useRecomendacao(talhaoId: string | null): EstadoConsulta<RecomendacaoResultado> {
+  const [estado, setEstado] = useState<EstadoConsulta<RecomendacaoResultado>>({
+    dados: null,
+    carregando: false,
+    erro: null,
+  })
+
+  useEffect(() => {
+    if (!talhaoId) return
+    let cancelado = false
+    setEstado({ dados: null, carregando: true, erro: null })
+
+    apiGet<RecomendacaoApi>(`/api/v1/talhoes/${talhaoId}/recomendacao`)
+      .then((resposta) => {
+        if (cancelado) return
+        setEstado({ dados: resposta, carregando: false, erro: null })
+      })
+      .catch((erro: unknown) => {
+        if (cancelado) return
+        const mensagem =
+          erro instanceof ApiError && erro.codigo === 404 ? null : 'Falha ao buscar recomendação.'
+        setEstado({ dados: null, carregando: false, erro: mensagem })
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [talhaoId])
 
   return estado
 }

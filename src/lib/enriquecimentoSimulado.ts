@@ -2,12 +2,11 @@ import { gerarHistorico } from './historico'
 import type { EnriquecimentoSimulado, StatusPlantio } from '../types'
 
 /**
- * Feature 012 (Recomendação) e a série histórica de umidade do solo ainda não
- * existem na API (`Agro_Tec_api`) — ver "Impacto no backend" em
- * `requisitos/REQUISITOS.md`. Enquanto isso, `PainelRecomendacao` e
- * `GraficoUmidade` continuam alimentados por um valor determinístico derivado
- * do id real do talhão (não é aleatório, não muda a cada render, mas também
- * NÃO é dado real — nunca usar fora desses dois componentes).
+ * Não há endpoint de série histórica de umidade do solo na API
+ * (`Agro_Tec_api`) — a Recomendação (feature 012) já é real (`useRecomendacao`),
+ * só o `GraficoUmidade` continua alimentado por um valor determinístico
+ * derivado do id real do talhão (não é aleatório, não muda a cada render, mas
+ * também NÃO é dado real — nunca usar fora do gráfico).
  */
 function hashDeterministico(texto: string): number {
   let hash = 0

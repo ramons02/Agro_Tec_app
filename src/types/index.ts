@@ -79,9 +79,19 @@ export interface PulverizacaoResultado {
   fonteDados: string
 }
 
-/** Dados só usados para alimentar a recomendação (`lib/recomendacao.ts`) e o gráfico de
- * umidade (`GraficoUmidade`) — feature 012 (Recomendação) ainda não existe na API, então
- * essa parte continua simulada localmente (decisão registrada em REQUISITOS.md). */
+export type Prioridade = 'ALTA' | 'MEDIA' | 'BAIXA'
+
+/** Espelha `GET /talhoes/{id}/recomendacao` (feature 012) — combina status de
+ * plantio e pulverização num texto único, calculado no backend. */
+export interface RecomendacaoResultado {
+  texto: string
+  prioridade: Prioridade
+  aviso: string
+}
+
+/** Dados só usados para alimentar o gráfico de umidade (`GraficoUmidade`) —
+ * não há endpoint de série histórica de umidade do solo na API; a
+ * Recomendação (feature 012) em si já é real, vem de `useRecomendacao`. */
 export interface EnriquecimentoSimulado {
   umidadeSolo0_7cm: number
   capacidadeCampo: number
