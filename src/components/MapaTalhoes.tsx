@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { MapContainer, Marker, Polygon, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import type { EstacaoInmet, MedicaoTempoReal, Talhao } from '../types'
+import type { EstacaoProxima, Talhao } from '../types'
 import { STATUS_PLANTIO_COR_MAPA } from './ui/Badge'
 
 const estacaoIcon = L.divIcon({
@@ -17,8 +17,7 @@ const estacaoIcon = L.divIcon({
 
 interface MapaTalhoesProps {
   talhoes: Talhao[]
-  estacoes: EstacaoInmet[]
-  medicoes: Record<string, MedicaoTempoReal>
+  estacoesFoco: EstacaoProxima[]
   onSelecionarTalhao: (talhao: Talhao) => void
   talhaoFoco: Talhao
 }
@@ -26,30 +25,27 @@ interface MapaTalhoesProps {
 /**
  * Talhões têm poucas centenas de metros de lado: sem isto, o mapa abre num
  * zoom que mostra a região inteira e os polígonos somem em meia dúzia de
- * pixels. Enquadra o talhão em foco (+ sua estação) toda vez que a seleção muda.
+ * pixels. Enquadra o talhão em foco (+ suas estações mais próximas) toda vez
+ * que a seleção muda.
  */
-function FocoTalhao({ talhao, estacao }: { talhao: Talhao; estacao: EstacaoInmet | undefined }) {
+function FocoTalhao({ talhao, estacoes }: { talhao: Talhao; estacoes: EstacaoProxima[] }) {
   const map = useMap()
 
   useEffect(() => {
-    const pontos: [number, number][] = [...talhao.poligono]
-    if (estacao) pontos.push(estacao.posicao)
-    map.fitBounds(pontos, { padding: [56, 56], maxZoom: 16 })
+    const pontos: [number, number][] = [...talhao.poligono, ...estacoes.map((e) => e.posicao)]
+    if (pontos.length > 0) map.fitBounds(pontos, { padding: [56, 56], maxZoom: 16 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [talhao.id])
+  }, [talhao.id, estacoes.length])
 
   return null
 }
 
 export function MapaTalhoes({
   talhoes,
-  estacoes,
-  medicoes,
+  estacoesFoco,
   onSelecionarTalhao,
   talhaoFoco,
 }: MapaTalhoesProps) {
-  const estacaoFoco = estacoes.find((e) => e.codigo === talhaoFoco.estacaoMaisProximaCodigo)
-
   return (
     <MapContainer center={talhaoFoco.centro} zoom={15} className="h-full w-full">
       <TileLayer
@@ -57,7 +53,7 @@ export function MapaTalhoes({
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
       />
 
-      <FocoTalhao talhao={talhaoFoco} estacao={estacaoFoco} />
+      <FocoTalhao talhao={talhaoFoco} estacoes={estacoesFoco} />
 
       {talhoes.map((talhao) => (
         <Polygon
@@ -65,8 +61,8 @@ export function MapaTalhoes({
           positions={talhao.poligono}
           eventHandlers={{ click: () => onSelecionarTalhao(talhao) }}
           pathOptions={{
-            color: STATUS_PLANTIO_COR_MAPA[talhao.statusPlantio],
-            fillColor: STATUS_PLANTIO_COR_MAPA[talhao.statusPlantio],
+            color: talhao.statusPlantio ? STATUS_PLANTIO_COR_MAPA[talhao.statusPlantio] : '#64748b',
+            fillColor: talhao.statusPlantio ? STATUS_PLANTIO_COR_MAPA[talhao.statusPlantio] : '#64748b',
             fillOpacity: 0.35,
             weight: 2,
           }}
@@ -74,36 +70,27 @@ export function MapaTalhoes({
           <Popup>
             <div className="space-y-1 text-sm">
               <p className="font-semibold">{talhao.nome}</p>
-              <p>{talhao.areaHa} ha · solo {talhao.tipoSolo.toLowerCase()}</p>
-              <p>Umidade 0-7cm: {(talhao.umidadeSolo0_7cm * 100).toFixed(0)}%</p>
+              <p>
+                {talhao.areaHa.toFixed(1)} ha
+                {talhao.tipoSolo ? ` · solo ${talhao.tipoSolo.toLowerCase()}` : ''}
+              </p>
             </div>
           </Popup>
         </Polygon>
       ))}
 
-      {estacoes.map((estacao) => {
-        const medicao = medicoes[estacao.codigo]
-        return (
-          <Marker key={estacao.codigo} position={estacao.posicao} icon={estacaoIcon}>
-            <Popup>
-              <div className="space-y-1 text-sm">
-                <p className="font-semibold">
-                  Estação {estacao.codigo} — {estacao.nome}
-                </p>
-                {medicao ? (
-                  <>
-                    <p>Vento: {medicao.ventoVelocidadeKmh.toFixed(1)} km/h</p>
-                    <p>Rajada: {medicao.ventoRajadaKmh.toFixed(1)} km/h</p>
-                    <p>Chuva: {medicao.precipitacaoMm.toFixed(1)} mm</p>
-                  </>
-                ) : (
-                  <p>Sem medição recente.</p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        )
-      })}
+      {estacoesFoco.map((estacao) => (
+        <Marker key={estacao.estacaoCodigo} position={estacao.posicao} icon={estacaoIcon}>
+          <Popup>
+            <div className="space-y-1 text-sm">
+              <p className="font-semibold">
+                Estação {estacao.estacaoCodigo} — {estacao.municipio}
+              </p>
+              <p>{estacao.distanciaKm.toFixed(1)} km do talhão selecionado</p>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
     </MapContainer>
   )
 }

@@ -2,31 +2,43 @@ import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { MapaTalhoes } from '../components/MapaTalhoes'
 import { PainelTalhao } from '../components/PainelTalhao'
-import { estacoesInmet } from '../mocks/data'
+import { useEstacoesProximas } from '../lib/apiHooks'
 import { useAppData } from '../store/AppDataContext'
 
 export function MapaPage() {
-  const { talhoes, medicoes } = useAppData()
+  const { talhoes, carregando, erro } = useAppData()
   const location = useLocation()
   const talhaoIdFocado = (location.state as { talhaoId?: string } | null)?.talhaoId
 
-  const [talhaoSelecionadoId, setTalhaoSelecionadoId] = useState<string>(
-    talhaoIdFocado ?? talhoes[0].id,
-  )
-  const talhaoSelecionado = talhoes.find((t) => t.id === talhaoSelecionadoId) ?? talhoes[0]
+  const [talhaoSelecionadoId, setTalhaoSelecionadoId] = useState<string | undefined>(talhaoIdFocado)
+  const talhaoSelecionado =
+    talhoes.find((t) => t.id === talhaoSelecionadoId) ?? talhoes[0] ?? null
 
-  const estacao = estacoesInmet.find(
-    (e) => e.codigo === talhaoSelecionado.estacaoMaisProximaCodigo,
-  )
-  const medicao = medicoes[talhaoSelecionado.estacaoMaisProximaCodigo]
+  const { dados: estacoesFoco } = useEstacoesProximas(talhaoSelecionado?.id ?? null)
+
+  if (erro) {
+    return <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
+  }
+
+  if (carregando && talhoes.length === 0) {
+    return <p className="text-sm text-slate-400">Carregando talhões…</p>
+  }
+
+  if (!talhaoSelecionado) {
+    return (
+      <p className="text-sm text-slate-400">
+        Nenhum talhão cadastrado ainda — cadastre um para ver o mapa.
+      </p>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col gap-4">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Mapa de Talhões</h1>
         <p className="text-sm text-slate-500">
-          Visualize propriedades, talhões e estações do INMET mais próximas. Clique em um
-          talhão ou marcador para ver detalhes.
+          Visualize os talhões e as estações do INMET mais próximas do selecionado. Clique
+          em um talhão para ver detalhes.
         </p>
       </div>
 
@@ -34,14 +46,13 @@ export function MapaPage() {
         <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
           <MapaTalhoes
             talhoes={talhoes}
-            estacoes={estacoesInmet}
-            medicoes={medicoes}
+            estacoesFoco={estacoesFoco ?? []}
             onSelecionarTalhao={(talhao) => setTalhaoSelecionadoId(talhao.id)}
             talhaoFoco={talhaoSelecionado}
           />
         </div>
 
-        <PainelTalhao talhao={talhaoSelecionado} estacao={estacao} medicao={medicao} />
+        <PainelTalhao talhao={talhaoSelecionado} estacaoMaisProxima={estacoesFoco?.[0] ?? null} />
       </div>
     </div>
   )

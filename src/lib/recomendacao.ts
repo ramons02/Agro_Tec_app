@@ -1,4 +1,4 @@
-import type { MedicaoTempoReal, Talhao } from '../types'
+import type { PontoHistoricoUmidade, PulverizacaoResultado, StatusPlantio } from '../types'
 
 export type Prioridade = 'ALTA' | 'MEDIA' | 'BAIXA'
 
@@ -8,8 +8,7 @@ export interface Recomendacao {
   mensagens: string[]
 }
 
-function tendenciaUmidade(talhao: Talhao): 'SUBINDO' | 'CAINDO' | 'ESTAVEL' {
-  const historico = talhao.historicoUmidade
+function tendenciaUmidade(historico: PontoHistoricoUmidade[]): 'SUBINDO' | 'CAINDO' | 'ESTAVEL' {
   if (historico.length < 4) return 'ESTAVEL'
 
   const recente = historico[historico.length - 1].umidade
@@ -21,25 +20,37 @@ function tendenciaUmidade(talhao: Talhao): 'SUBINDO' | 'CAINDO' | 'ESTAVEL' {
   return 'ESTAVEL'
 }
 
+const MENSAGEM_BLOQUEIO_PULVERIZACAO: Record<string, string> = {
+  BLOQUEIO_VENTO_FORTE: 'Pulverização bloqueada por vento forte — aguarde a próxima checagem antes de aplicar.',
+  BLOQUEIO_INVERSAO_TERMICA:
+    'Pulverização bloqueada por inversão térmica — não aplique defensivos até a condição normalizar.',
+  BLOQUEIO_EVAPORACAO_EXCESSIVA:
+    'Pulverização bloqueada por evaporação excessiva (Delta T alto) — a calda pode não atingir o alvo.',
+}
+
 /**
  * Camada de sugestão sintetizando plantio (HU-10/11) + pulverização (HU-08/09) num
- * único "e agora, o que eu faço?" — NÃO é uma regra de negócio validada com a área
- * de negócio, é uma proposta feita durante a prototipação (ver HU-12).
+ * único "e agora, o que eu faço?" — feature 012 (Recomendação) ainda não existe na
+ * API; `historicoUmidade` aqui vem do enriquecimento simulado
+ * (`lib/enriquecimentoSimulado.ts`), não é dado real.
  */
 export function gerarRecomendacao(
-  talhao: Talhao,
-  medicao: MedicaoTempoReal | undefined,
+  statusPlantio: StatusPlantio | null,
+  historicoUmidade: PontoHistoricoUmidade[],
+  pulverizacao: PulverizacaoResultado | null,
 ): Recomendacao {
-  const tendencia = tendenciaUmidade(talhao)
+  const tendencia = tendenciaUmidade(historicoUmidade)
   const mensagens: string[] = []
   let prioridade: Prioridade = 'BAIXA'
 
-  if (talhao.statusPlantio === 'VERMELHO') {
+  if (statusPlantio === null) {
+    mensagens.push('Ainda sem balanço hídrico calculado para este talhão.')
+  } else if (statusPlantio === 'VERMELHO') {
     prioridade = 'ALTA'
     mensagens.push(
       'Solo em risco crítico — evite tráfego de maquinário pesado até a umidade se recuperar.',
     )
-  } else if (talhao.statusPlantio === 'AMARELO') {
+  } else if (statusPlantio === 'AMARELO') {
     prioridade = 'MEDIA'
     if (tendencia === 'CAINDO') {
       mensagens.push(
@@ -56,18 +67,16 @@ export function gerarRecomendacao(
     mensagens.push('Solo em condição ideal para plantio — sem restrições hídricas no momento.')
   }
 
-  if (medicao) {
-    if (medicao.statusPulverizacao === 'FAVORAVEL') {
+  if (pulverizacao) {
+    if (pulverizacao.classificacao === 'FAVORAVEL') {
       mensagens.push(
         'Janela de pulverização liberada agora — bom momento para aplicar defensivos, se necessário.',
       )
-    } else if (medicao.statusPulverizacao === 'BLOQUEIO_VENTO_FORTE') {
-      if (prioridade !== 'ALTA') prioridade = 'MEDIA'
-      mensagens.push('Pulverização bloqueada por vento forte — aguarde a próxima checagem antes de aplicar.')
     } else {
       if (prioridade !== 'ALTA') prioridade = 'MEDIA'
       mensagens.push(
-        'Pulverização bloqueada por inversão térmica — não aplique defensivos até o vento normalizar.',
+        MENSAGEM_BLOQUEIO_PULVERIZACAO[pulverizacao.classificacao] ??
+          'Pulverização bloqueada no momento — aguarde a próxima checagem.',
       )
     }
   }

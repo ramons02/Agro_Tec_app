@@ -17,12 +17,14 @@ const STATUS_PULVERIZACAO_STYLE: Record<StatusPulverizacao, string> = {
   FAVORAVEL: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
   BLOQUEIO_VENTO_FORTE: 'bg-red-50 text-red-700 ring-red-600/20',
   BLOQUEIO_INVERSAO_TERMICA: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+  BLOQUEIO_EVAPORACAO_EXCESSIVA: 'bg-orange-50 text-orange-700 ring-orange-600/20',
 }
 
 export const STATUS_PULVERIZACAO_LABEL: Record<StatusPulverizacao, string> = {
   FAVORAVEL: 'Favorável / Liberado',
   BLOQUEIO_VENTO_FORTE: 'Bloqueio: vento forte',
   BLOQUEIO_INVERSAO_TERMICA: 'Bloqueio: inversão térmica',
+  BLOQUEIO_EVAPORACAO_EXCESSIVA: 'Bloqueio: evaporação excessiva',
 }
 
 function BaseBadge({ className, children }: { className: string; children: ReactNode }) {

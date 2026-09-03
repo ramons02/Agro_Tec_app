@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button'
 import { Card, CardBody } from '../components/ui/Card'
 import { GraficoUmidade } from '../components/GraficoUmidade'
 import { exportarCsv } from '../lib/exportarCsv'
+import { gerarEnriquecimentoSimulado } from '../lib/enriquecimentoSimulado'
 import { useAppData } from '../store/AppDataContext'
 import type { StatusPlantio } from '../types'
 
@@ -15,7 +16,7 @@ const FILTROS_STATUS: Array<{ valor: StatusPlantio | 'TODOS'; label: string }> =
 ]
 
 export function DashboardPlantioPage() {
-  const { propriedades, talhoes } = useAppData()
+  const { propriedades, talhoes, carregando, erro } = useAppData()
   const [propriedadeId, setPropriedadeId] = useState<string>('TODAS')
   const [status, setStatus] = useState<StatusPlantio | 'TODOS'>('TODOS')
 
@@ -26,7 +27,7 @@ export function DashboardPlantioPage() {
           (propriedadeId === 'TODAS' || t.propriedadeId === propriedadeId) &&
           (status === 'TODOS' || t.statusPlantio === status),
       ),
-    [propriedadeId, status],
+    [talhoes, propriedadeId, status],
   )
 
   const contagem = {
@@ -42,9 +43,10 @@ export function DashboardPlantioPage() {
         Propriedade: propriedade?.nome ?? '',
         Talhao: talhao.nome,
         'Area (ha)': talhao.areaHa,
-        Solo: talhao.tipoSolo,
-        Status: talhao.statusPlantio,
-        'Umidade 0-7cm (%)': Math.round(talhao.umidadeSolo0_7cm * 100),
+        Solo: talhao.tipoSolo ?? '',
+        Status: talhao.statusPlantio ?? 'SEM_CALCULO',
+        'Armazenamento (mm)': talhao.armazenamentoMm ?? '',
+        '% da CAD': talhao.percentualCad ?? '',
       }
     })
     exportarCsv(linhas, `plantio-agroclima-${new Date().toISOString().slice(0, 10)}.csv`)
@@ -68,6 +70,11 @@ export function DashboardPlantioPage() {
           Exportar CSV
         </Button>
       </div>
+
+      {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+      {carregando && talhoes.length === 0 && (
+        <p className="text-sm text-slate-400">Carregando talhões…</p>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         <StatCard label="Ideal para plantio" valor={contagem.VERDE} cor="text-emerald-600" />
@@ -109,6 +116,7 @@ export function DashboardPlantioPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {talhoesFiltrados.map((talhao) => {
           const propriedade = propriedades.find((p) => p.id === talhao.propriedadeId)
+          const { historicoUmidade } = gerarEnriquecimentoSimulado(talhao.id, talhao.statusPlantio)
           return (
             <Card key={talhao.id}>
               <CardBody className="space-y-3">
@@ -117,25 +125,35 @@ export function DashboardPlantioPage() {
                     <p className="text-sm font-semibold text-slate-900">{talhao.nome}</p>
                     <p className="text-xs text-slate-500">{propriedade?.nome}</p>
                   </div>
-                  <BadgeStatusPlantio status={talhao.statusPlantio} />
+                  {talhao.statusPlantio ? (
+                    <BadgeStatusPlantio status={talhao.statusPlantio} />
+                  ) : (
+                    <span className="text-xs text-slate-400">Sem cálculo</span>
+                  )}
                 </div>
 
                 <dl className="grid grid-cols-2 gap-y-2 text-sm">
                   <dt className="text-slate-500">Área</dt>
-                  <dd className="text-right font-medium text-slate-800">{talhao.areaHa} ha</dd>
-                  <dt className="text-slate-500">Solo</dt>
-                  <dd className="text-right font-medium text-slate-800">{talhao.tipoSolo}</dd>
-                  <dt className="text-slate-500">Umidade 0-7cm</dt>
                   <dd className="text-right font-medium text-slate-800">
-                    {(talhao.umidadeSolo0_7cm * 100).toFixed(0)}%
+                    {talhao.areaHa.toFixed(1)} ha
+                  </dd>
+                  <dt className="text-slate-500">Solo</dt>
+                  <dd className="text-right font-medium text-slate-800">
+                    {talhao.tipoSolo ?? '—'}
+                  </dd>
+                  <dt className="text-slate-500">% da CAD</dt>
+                  <dd className="text-right font-medium text-slate-800">
+                    {talhao.percentualCad !== null ? `${talhao.percentualCad.toFixed(0)}%` : '—'}
                   </dd>
                 </dl>
 
                 <div className="border-t border-slate-100 pt-2">
-                  <p className="mb-1 text-xs text-slate-400">Últimos 10 dias</p>
+                  <p className="mb-1 text-xs text-slate-400">
+                    Últimos 10 dias (simulado — feature 012 ainda não implementada)
+                  </p>
                   <GraficoUmidade
-                    historico={talhao.historicoUmidade}
-                    statusAtual={talhao.statusPlantio}
+                    historico={historicoUmidade}
+                    statusAtual={talhao.statusPlantio ?? 'AMARELO'}
                     variante="compacta"
                   />
                 </div>
@@ -144,7 +162,7 @@ export function DashboardPlantioPage() {
           )
         })}
 
-        {talhoesFiltrados.length === 0 && (
+        {talhoesFiltrados.length === 0 && !carregando && (
           <p className="col-span-3 py-8 text-center text-sm text-slate-400">
             Nenhum talhão encontrado para os filtros selecionados.
           </p>

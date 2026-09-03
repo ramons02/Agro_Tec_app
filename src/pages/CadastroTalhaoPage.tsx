@@ -3,66 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import { MapaDesenhoTalhao } from '../components/MapaDesenhoTalhao'
-import { gerarHistorico } from '../lib/historico'
-import { centroideEstaForaDoPara, encontrarSobreposicao } from '../lib/validacaoGeometria'
-import { estacoesInmet } from '../mocks/data'
+import { ApiError } from '../lib/apiClient'
+import { pontosLeafletParaPolygon } from '../lib/geo'
 import { useAppData } from '../store/AppDataContext'
-import type { Propriedade, Talhao, TipoSolo } from '../types'
+import type { Talhao } from '../types'
 
-type Etapa = 'DADOS' | 'GEOMETRIA' | 'SOLO'
+type Etapa = 'DADOS' | 'GEOMETRIA' | 'ENVIANDO'
 
 const NOVA_PROPRIEDADE = '__NOVA__'
-
-const SOLO_PREVIEW: Record<TipoSolo, { argila: number; areia: number; cad: number }> = {
-  ARGILOSO: { argila: 52, areia: 18, cad: 0.38 },
-  MISTO: { argila: 28, areia: 40, cad: 0.29 },
-  ARENOSO: { argila: 12, areia: 68, cad: 0.19 },
-}
-
 const CENTRO_PADRAO: [number, number] = [-1.295, -47.955]
-
-function centroide(pontos: [number, number][]): [number, number] {
-  const lat = pontos.reduce((soma, p) => soma + p[0], 0) / pontos.length
-  const lng = pontos.reduce((soma, p) => soma + p[1], 0) / pontos.length
-  return [lat, lng]
-}
-
-// Shoelace em coordenadas aproximadas por metros (projeção equirretangular) — precisão
-// de sobra para a escala de um talhão, sem precisar de uma lib de geodésia no protótipo.
-function calcularAreaHa(pontos: [number, number][]): number {
-  if (pontos.length < 3) return 0
-  const latRef = pontos[0][0]
-  const metrosPorGrauLat = 110540
-  const metrosPorGrauLng = 111320 * Math.cos((latRef * Math.PI) / 180)
-  const coordsMetros = pontos.map(
-    ([lat, lng]): [number, number] => [lng * metrosPorGrauLng, lat * metrosPorGrauLat],
-  )
-  let area = 0
-  for (let i = 0; i < coordsMetros.length; i++) {
-    const [x1, y1] = coordsMetros[i]
-    const [x2, y2] = coordsMetros[(i + 1) % coordsMetros.length]
-    area += x1 * y2 - x2 * y1
-  }
-  return Math.abs(area / 2) / 10000
-}
-
-function distanciaKm(a: [number, number], b: [number, number]): number {
-  const R = 6371
-  const dLat = ((b[0] - a[0]) * Math.PI) / 180
-  const dLng = ((b[1] - a[1]) * Math.PI) / 180
-  const lat1 = (a[0] * Math.PI) / 180
-  const lat2 = (b[0] * Math.PI) / 180
-  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2)
-  return R * 2 * Math.asin(Math.sqrt(h))
-}
-
-function estacaoMaisProxima(centro: [number, number]): string {
-  return estacoesInmet.reduce((maisProxima, estacao) =>
-    distanciaKm(centro, estacao.posicao) < distanciaKm(centro, maisProxima.posicao)
-      ? estacao
-      : maisProxima,
-  ).codigo
-}
 
 function removerFechamentoDuplicado(pontos: [number, number][]): [number, number][] {
   if (pontos.length > 1) {
@@ -114,19 +63,18 @@ function extrairPoligonoDeGeoJSON(json: unknown): [number, number][] | null {
 
 export function CadastroTalhaoPage() {
   const navigate = useNavigate()
-  const { propriedades, talhoes, adicionarPropriedade, adicionarTalhao } = useAppData()
+  const { propriedades, talhoes, criarPropriedade, criarTalhao } = useAppData()
 
   const [etapa, setEtapa] = useState<Etapa>('DADOS')
   const [nome, setNome] = useState('')
-  const [propriedadeId, setPropriedadeId] = useState<string>(propriedades[0].id)
+  const [propriedadeId, setPropriedadeId] = useState<string>(propriedades[0]?.id ?? NOVA_PROPRIEDADE)
   const [novaPropriedadeNome, setNovaPropriedadeNome] = useState('')
-  const [novaPropriedadeProprietario, setNovaPropriedadeProprietario] = useState('')
-  const [novaPropriedadeMunicipio, setNovaPropriedadeMunicipio] = useState('')
   const [pontos, setPontos] = useState<[number, number][]>([])
   const [focoVersaoImportacao, setFocoVersaoImportacao] = useState(0)
   const [erroImportacao, setErroImportacao] = useState<string | null>(null)
-  const [tipoSolo, setTipoSolo] = useState<TipoSolo | null>(null)
-  const [consultandoSolo, setConsultandoSolo] = useState(false)
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null)
+  const [talhaoCriado, setTalhaoCriado] = useState<Talhao | null>(null)
+  const [enviando, setEnviando] = useState(false)
 
   const inputArquivoRef = useRef<HTMLInputElement>(null)
 
@@ -136,18 +84,18 @@ export function CadastroTalhaoPage() {
     return talhoes.find((t) => t.propriedadeId === id)?.centro ?? CENTRO_PADRAO
   }
 
-  function irParaGeometria(event: FormEvent) {
+  async function irParaGeometria(event: FormEvent) {
     event.preventDefault()
+    setErroEnvio(null)
 
     if (criandoNovaPropriedade) {
-      const novaPropriedade: Propriedade = {
-        id: `prop-${Date.now()}`,
-        nome: novaPropriedadeNome,
-        proprietario: novaPropriedadeProprietario,
-        municipio: novaPropriedadeMunicipio,
+      try {
+        const propriedade = await criarPropriedade(novaPropriedadeNome)
+        setPropriedadeId(propriedade.id)
+      } catch (excecao) {
+        setErroEnvio(excecao instanceof ApiError ? excecao.message : 'Falha ao criar a propriedade.')
+        return
       }
-      adicionarPropriedade(novaPropriedade)
-      setPropriedadeId(novaPropriedade.id)
     }
 
     setEtapa('GEOMETRIA')
@@ -196,60 +144,49 @@ export function CadastroTalhaoPage() {
     leitor.readAsText(arquivo)
   }
 
-  function confirmarGeometria() {
-    const sobreposto = encontrarSobreposicao(pontos, propriedadeId, talhoes)
-    if (sobreposto) {
-      setErroImportacao(
-        `Esse polígono se sobrepõe ao talhão "${sobreposto.nome}", já cadastrado nesta propriedade.`,
-      )
-      return
+  /** Sobreposição, "fora do Pará" e parametrização de solo são todas validadas e
+   * calculadas no servidor (RN015/RN016, feature 004/005) — o cliente só desenha
+   * e envia a geometria, nunca recalcula essas regras localmente. */
+  async function enviarTalhao(confirmarForaDoPara: boolean) {
+    setEnviando(true)
+    setErroEnvio(null)
+    setEtapa('ENVIANDO')
+    try {
+      const talhao = await criarTalhao({
+        propriedadeId,
+        nome,
+        geometria: pontosLeafletParaPolygon(pontos),
+        confirmarForaDoPara,
+      })
+      setTalhaoCriado(talhao)
+    } catch (excecao) {
+      if (excecao instanceof ApiError && excecao.codigo === 422) {
+        const detalhes = excecao.detalhes as { tipo?: string } | null
+        if (detalhes?.tipo === 'FORA_DO_PARA') {
+          const confirmado = window.confirm(
+            'Esse talhão parece estar fora do estado do Pará. Confirma o cadastro mesmo assim?',
+          )
+          if (confirmado) {
+            await enviarTalhao(true)
+            return
+          }
+        }
+      }
+      setErroEnvio(excecao instanceof ApiError ? excecao.message : 'Falha ao cadastrar o talhão.')
+      setEtapa('GEOMETRIA')
+    } finally {
+      setEnviando(false)
     }
-
-    if (centroideEstaForaDoPara(pontos)) {
-      const confirmado = window.confirm(
-        'Esse talhão parece estar fora do estado do Pará. Confirma o cadastro mesmo assim?',
-      )
-      if (!confirmado) return
-    }
-
-    setErroImportacao(null)
-    setEtapa('SOLO')
-    setConsultandoSolo(true)
-    // Simula a consulta automática à API SoilGrids (HU-04) a partir da coordenada central.
-    setTimeout(() => {
-      setTipoSolo('MISTO')
-      setConsultandoSolo(false)
-    }, 1200)
   }
 
   function finalizarCadastro() {
-    if (tipoSolo) {
-      const centro = centroide(pontos)
-      const novoTalhao: Talhao = {
-        id: `talhao-${Date.now()}`,
-        propriedadeId,
-        nome,
-        areaHa: Math.round(calcularAreaHa(pontos) * 10) / 10,
-        tipoSolo,
-        capacidadeCampo: SOLO_PREVIEW[tipoSolo].cad,
-        centro,
-        poligono: pontos,
-        statusPlantio: 'AMARELO', // recém-cadastrado: ainda sem histórico de umidade acumulado
-        umidadeSolo0_7cm: 0.22,
-        estacaoMaisProximaCodigo: estacaoMaisProxima(centro),
-        historicoUmidade: gerarHistorico(0.22, -0.004),
-      }
-      adicionarTalhao(novoTalhao)
-      navigate('/mapa', { state: { talhaoId: novoTalhao.id } })
-      return
-    }
-    navigate('/mapa')
+    if (talhaoCriado) navigate('/mapa', { state: { talhaoId: talhaoCriado.id } })
   }
 
   const ETAPAS: Array<{ id: Etapa; label: string }> = [
     { id: 'DADOS', label: '1. Dados básicos' },
     { id: 'GEOMETRIA', label: '2. Geometria' },
-    { id: 'SOLO', label: '3. Solo (automático)' },
+    { id: 'ENVIANDO', label: '3. Solo (automático)' },
   ]
 
   return (
@@ -325,32 +262,6 @@ export function CadastroTalhaoPage() {
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
                     />
                   </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                      Proprietário
-                    </label>
-                    <input
-                      required
-                      value={novaPropriedadeProprietario}
-                      onChange={(e) => setNovaPropriedadeProprietario(e.target.value)}
-                      placeholder="Ex: Ana Ferreira"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                      Município
-                    </label>
-                    <input
-                      required
-                      value={novaPropriedadeMunicipio}
-                      onChange={(e) => setNovaPropriedadeMunicipio(e.target.value)}
-                      placeholder="Ex: Igarapé-Açu - PA"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    />
-                  </div>
                 </div>
               )}
 
@@ -366,6 +277,12 @@ export function CadastroTalhaoPage() {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
                 />
               </div>
+
+              {erroEnvio && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                  {erroEnvio}
+                </p>
+              )}
 
               <Button type="submit" className="w-full">
                 Continuar
@@ -420,9 +337,9 @@ export function CadastroTalhaoPage() {
               </div>
             </div>
 
-            {erroImportacao && (
+            {(erroImportacao || erroEnvio) && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-                {erroImportacao}
+                {erroImportacao ?? erroEnvio}
               </p>
             )}
 
@@ -439,8 +356,8 @@ export function CadastroTalhaoPage() {
               </Button>
               <Button
                 className="flex-1"
-                disabled={pontos.length < 3}
-                onClick={confirmarGeometria}
+                disabled={pontos.length < 3 || enviando}
+                onClick={() => void enviarTalhao(false)}
               >
                 Confirmar geometria
               </Button>
@@ -449,7 +366,7 @@ export function CadastroTalhaoPage() {
         </Card>
       )}
 
-      {etapa === 'SOLO' && (
+      {etapa === 'ENVIANDO' && (
         <Card>
           <CardHeader>
             <p className="text-sm font-semibold text-slate-900">
@@ -457,47 +374,51 @@ export function CadastroTalhaoPage() {
             </p>
           </CardHeader>
           <CardBody className="space-y-4">
-            {consultandoSolo ? (
+            {enviando || !talhaoCriado ? (
               <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-4 text-sm text-slate-500">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600" />
-                Consultando SoilGrids (ISRIC/Embrapa) pela coordenada central…
+                Cadastrando talhão e consultando SoilGrids (ISRIC) pela coordenada central…
               </div>
             ) : (
-              tipoSolo && (
-                <div className="space-y-3">
+              <div className="space-y-3">
+                {talhaoCriado.tipoSolo ? (
                   <div className="rounded-lg bg-emerald-50 p-4">
                     <p className="text-sm font-semibold text-emerald-800">
-                      Tipo de solo: {tipoSolo}
+                      Tipo de solo: {talhaoCriado.tipoSolo}
                     </p>
                     <p className="text-xs text-emerald-700">
                       Preenchido automaticamente a partir das coordenadas do talhão.
                     </p>
                   </div>
-                  <dl className="grid grid-cols-3 gap-3 text-center text-sm">
-                    <div className="rounded-lg border border-slate-200 p-3">
-                      <dt className="text-xs text-slate-500">Argila</dt>
-                      <dd className="font-semibold text-slate-800">
-                        {SOLO_PREVIEW[tipoSolo].argila}%
-                      </dd>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 p-3">
-                      <dt className="text-xs text-slate-500">Areia</dt>
-                      <dd className="font-semibold text-slate-800">
-                        {SOLO_PREVIEW[tipoSolo].areia}%
-                      </dd>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 p-3">
-                      <dt className="text-xs text-slate-500">CAD</dt>
-                      <dd className="font-semibold text-slate-800">
-                        {(SOLO_PREVIEW[tipoSolo].cad * 100).toFixed(0)}%
-                      </dd>
-                    </div>
-                  </dl>
-                  <Button className="w-full" onClick={finalizarCadastro}>
-                    Concluir cadastro
-                  </Button>
-                </div>
-              )
+                ) : (
+                  <div className="rounded-lg bg-amber-50 p-4">
+                    <p className="text-sm font-semibold text-amber-800">
+                      Solo não parametrizado automaticamente
+                    </p>
+                    <p className="text-xs text-amber-700">
+                      A fonte de dados de solo (SoilGrids) não respondeu para essa coordenada —
+                      o talhão foi cadastrado mesmo assim, sem bloqueio (FR-006).
+                    </p>
+                  </div>
+                )}
+                <dl className="grid grid-cols-2 gap-3 text-center text-sm">
+                  <div className="rounded-lg border border-slate-200 p-3">
+                    <dt className="text-xs text-slate-500">Área calculada</dt>
+                    <dd className="font-semibold text-slate-800">{talhaoCriado.areaHa.toFixed(2)} ha</dd>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 p-3">
+                    <dt className="text-xs text-slate-500">CAD</dt>
+                    <dd className="font-semibold text-slate-800">
+                      {talhaoCriado.capacidadeAguaDisponivelMm !== null
+                        ? `${talhaoCriado.capacidadeAguaDisponivelMm.toFixed(1)} mm`
+                        : '—'}
+                    </dd>
+                  </div>
+                </dl>
+                <Button className="w-full" onClick={finalizarCadastro}>
+                  Concluir cadastro
+                </Button>
+              </div>
             )}
           </CardBody>
         </Card>

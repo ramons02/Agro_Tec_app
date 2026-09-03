@@ -6,13 +6,25 @@ import { PropriedadesPage } from './pages/PropriedadesPage'
 import { CadastroTalhaoPage } from './pages/CadastroTalhaoPage'
 import { PulverizacaoPage } from './pages/PulverizacaoPage'
 import { DashboardPlantioPage } from './pages/DashboardPlantioPage'
+import { useAuth } from './store/AuthContext'
+
+function RotaProtegida({ children }: { children: React.ReactNode }) {
+  const { autenticado } = useAuth()
+  return autenticado ? <>{children}</> : <Navigate to="/login" replace />
+}
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
-      <Route element={<AppShell />}>
+      <Route
+        element={
+          <RotaProtegida>
+            <AppShell />
+          </RotaProtegida>
+        }
+      >
         <Route path="/mapa" element={<MapaPage />} />
         <Route path="/propriedades" element={<PropriedadesPage />} />
         <Route path="/talhoes/novo" element={<CadastroTalhaoPage />} />

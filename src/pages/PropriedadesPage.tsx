@@ -2,16 +2,18 @@ import { Link } from 'react-router-dom'
 import { BadgeStatusPlantio } from '../components/ui/Badge'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import { useAppData } from '../store/AppDataContext'
+import { useAuth } from '../store/AuthContext'
 
 export function PropriedadesPage() {
-  const { propriedades, talhoes, removerTalhao, papel } = useAppData()
+  const { propriedades, talhoes, removerTalhao, carregando, erro } = useAppData()
+  const { papel } = useAuth()
   const podeEscrever = papel !== 'AGRONOMO'
 
-  function handleExcluir(talhaoId: string, nomeTalhao: string) {
+  async function handleExcluir(talhaoId: string, nomeTalhao: string) {
     const confirmado = window.confirm(
       `Excluir "${nomeTalhao}"? Isso remove o talhão e o histórico associado a ele.`,
     )
-    if (confirmado) removerTalhao(talhaoId)
+    if (confirmado) await removerTalhao(talhaoId)
   }
 
   return (
@@ -34,6 +36,16 @@ export function PropriedadesPage() {
         )}
       </div>
 
+      {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+      {carregando && propriedades.length === 0 && (
+        <p className="text-sm text-slate-400">Carregando propriedades…</p>
+      )}
+      {!carregando && !erro && propriedades.length === 0 && (
+        <p className="text-sm text-slate-400">
+          Nenhuma propriedade cadastrada ainda. Comece cadastrando um talhão.
+        </p>
+      )}
+
       <div className="space-y-4">
         {propriedades.map((propriedade) => {
           const talhoesDaPropriedade = talhoes.filter(
@@ -44,12 +56,7 @@ export function PropriedadesPage() {
           return (
             <Card key={propriedade.id}>
               <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{propriedade.nome}</p>
-                  <p className="text-xs text-slate-500">
-                    {propriedade.proprietario} · {propriedade.municipio}
-                  </p>
-                </div>
+                <p className="text-sm font-semibold text-slate-900">{propriedade.nome}</p>
                 <span className="text-xs font-medium text-slate-500">
                   {talhoesDaPropriedade.length}{' '}
                   {talhoesDaPropriedade.length === 1 ? 'talhão' : 'talhões'} ·{' '}
@@ -71,7 +78,6 @@ export function PropriedadesPage() {
                           <th className="px-5 py-2 font-medium">Área</th>
                           <th className="px-5 py-2 font-medium">Solo</th>
                           <th className="px-5 py-2 font-medium">Status</th>
-                          <th className="px-5 py-2 font-medium">Estação</th>
                           {podeEscrever && (
                             <th className="px-5 py-2 font-medium text-right">Ação</th>
                           )}
@@ -83,13 +89,18 @@ export function PropriedadesPage() {
                             <td className="px-5 py-3 font-medium text-slate-800">
                               {talhao.nome}
                             </td>
-                            <td className="px-5 py-3 text-slate-600">{talhao.areaHa} ha</td>
-                            <td className="px-5 py-3 text-slate-600">{talhao.tipoSolo}</td>
-                            <td className="px-5 py-3">
-                              <BadgeStatusPlantio status={talhao.statusPlantio} />
+                            <td className="px-5 py-3 text-slate-600">
+                              {talhao.areaHa.toFixed(1)} ha
                             </td>
                             <td className="px-5 py-3 text-slate-600">
-                              {talhao.estacaoMaisProximaCodigo}
+                              {talhao.tipoSolo ?? '—'}
+                            </td>
+                            <td className="px-5 py-3">
+                              {talhao.statusPlantio ? (
+                                <BadgeStatusPlantio status={talhao.statusPlantio} />
+                              ) : (
+                                <span className="text-xs text-slate-400">Ainda sem cálculo</span>
+                              )}
                             </td>
                             {podeEscrever && (
                               <td className="px-5 py-3 text-right">

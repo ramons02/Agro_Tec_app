@@ -9,12 +9,19 @@ export type StatusPulverizacao =
   | 'FAVORAVEL'
   | 'BLOQUEIO_VENTO_FORTE'
   | 'BLOQUEIO_INVERSAO_TERMICA'
+  | 'BLOQUEIO_EVAPORACAO_EXCESSIVA'
 
+export type GeometriaGeoJSON = {
+  type: 'Polygon' | 'MultiPolygon'
+  coordinates: unknown
+}
+
+/** Espelha `PropriedadeRead` de `Agro_Tec_api` (`app/api/v1/endpoints/propriedades.py`). */
 export interface Propriedade {
   id: string
   nome: string
-  proprietario: string
-  municipio: string
+  proprietarioId: string
+  geometria: GeometriaGeoJSON | null
 }
 
 export interface PontoHistoricoUmidade {
@@ -22,45 +29,61 @@ export interface PontoHistoricoUmidade {
   umidade: number
 }
 
+/**
+ * Espelha `TalhaoRead` de `Agro_Tec_api` (`app/api/v1/endpoints/talhoes.py`), mais os
+ * campos derivados no cliente: `poligono`/`centro` (convertidos de `geometria` para o
+ * formato que o Leaflet espera) e `statusPlantio`/`percentualCad` (vêm de
+ * `GET /dashboard/plantio`, mesclados no talhão pelo `AppDataContext`).
+ */
 export interface Talhao {
   id: string
   propriedadeId: string
   nome: string
+  geometria: GeometriaGeoJSON
   areaHa: number
-  tipoSolo: TipoSolo
-  capacidadeCampo: number
-  centro: [number, number]
+  tipoSolo: TipoSolo | null
+  capacidadeAguaDisponivelMm: number | null
   poligono: [number, number][]
-  statusPlantio: StatusPlantio
-  umidadeSolo0_7cm: number
-  estacaoMaisProximaCodigo: string
-  historicoUmidade: PontoHistoricoUmidade[]
+  centro: [number, number]
+  statusPlantio: StatusPlantio | null
+  armazenamentoMm: number | null
+  percentualCad: number | null
 }
 
-export interface EstacaoInmet {
-  codigo: string
-  nome: string
+/** Espelha um item de `GET /talhoes/{id}/estacao-mais-proxima`. */
+export interface EstacaoProxima {
+  estacaoCodigo: string
   municipio: string
-  posicao: [number, number]
+  distanciaKm: number
+  posicao: [number, number] // [lat, lng]
 }
 
-export interface MedicaoTempoReal {
-  estacaoCodigo: string
-  dataHoraUtc: string
-  precipitacaoMm: number
-  temperaturaC: number
-  umidadePct: number
-  ventoVelocidadeKmh: number
-  ventoRajadaKmh: number
-  statusPulverizacao: StatusPulverizacao
+/** Espelha `GET /clima/atual?talhao_id=` — já combinado por IDW entre as estações
+ * mais próximas do talhão (Escopo V3), não é mais "por estação" isolada. */
+export interface ClimaAtual {
+  estacao: string
+  chuvaMm: number | null
+  ventoKmh: number | null
+  rajadaKmh: number | null
+  fonteDados: 'AO_VIVO' | 'PREVISAO' | string
+  medidoEmUtc: string
 }
 
-export interface Notificacao {
-  id: string
-  estacaoCodigo: string
-  estacaoNome: string
-  statusAnterior: StatusPulverizacao
-  statusNovo: StatusPulverizacao
-  criadoEm: string
-  lida: boolean
+/** Espelha `GET /talhoes/{id}/pulverizacao`. */
+export interface PulverizacaoResultado {
+  classificacao: StatusPulverizacao
+  motivosBloqueio: StatusPulverizacao[]
+  ventoKmh: number | null
+  rajadaKmh: number | null
+  deltaTC: number | null
+  fonteDados: string
+}
+
+/** Dados só usados para alimentar a recomendação (`lib/recomendacao.ts`) e o gráfico de
+ * umidade (`GraficoUmidade`) — feature 012 (Recomendação) ainda não existe na API, então
+ * essa parte continua simulada localmente (decisão registrada em REQUISITOS.md). */
+export interface EnriquecimentoSimulado {
+  umidadeSolo0_7cm: number
+  capacidadeCampo: number
+  historicoUmidade: PontoHistoricoUmidade[]
 }

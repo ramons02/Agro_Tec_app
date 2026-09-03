@@ -1,38 +1,33 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
-import { useAppData } from '../store/AppDataContext'
-import type { Papel } from '../types'
-
-const PAPEIS: Array<{ valor: Papel; label: string; descricao: string }> = [
-  {
-    valor: 'PRODUTOR_RURAL',
-    label: 'Produtor rural',
-    descricao: 'Gerencia as próprias propriedades e talhões',
-  },
-  {
-    valor: 'AGRONOMO',
-    label: 'Agrônomo',
-    descricao: 'Acesso de leitura às propriedades vinculadas',
-  },
-  {
-    valor: 'GESTOR_TECNOLOGIA',
-    label: 'Gestor de tecnologia',
-    descricao: 'Acesso completo a todas as propriedades',
-  },
-]
+import { ApiError } from '../lib/apiClient'
+import { useAuth } from '../store/AuthContext'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { definirPapel } = useAppData()
-  const [usuario, setUsuario] = useState('joao.bezerra')
-  const [senha, setSenha] = useState('••••••••')
-  const [papel, setPapel] = useState<Papel>('PRODUTOR_RURAL')
+  const { entrar } = useAuth()
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    definirPapel(papel)
-    navigate('/mapa')
+    setErro(null)
+    setEnviando(true)
+    try {
+      await entrar(email, senha)
+      navigate('/mapa')
+    } catch (excecao) {
+      setErro(
+        excecao instanceof ApiError
+          ? excecao.message
+          : 'Não consegui falar com a API. Verifique se o backend está no ar.',
+      )
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (
@@ -57,11 +52,14 @@ export function LoginPage() {
         >
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Usuário
+              E-mail
             </label>
             <input
-              value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="produtor@agroclima.dev"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
@@ -72,49 +70,24 @@ export function LoginPage() {
             </label>
             <input
               type="password"
+              required
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Entrar como
-            </label>
-            <div className="space-y-1.5">
-              {PAPEIS.map((p) => (
-                <label
-                  key={p.valor}
-                  className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    papel === p.valor
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="papel"
-                    checked={papel === p.valor}
-                    onChange={() => setPapel(p.valor)}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    <span className="block font-medium text-slate-800">{p.label}</span>
-                    <span className="block text-xs text-slate-500">{p.descricao}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
+          {erro && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
+          )}
 
-          <Button type="submit" className="w-full">
-            Entrar
+          <Button type="submit" className="w-full" disabled={enviando}>
+            {enviando ? 'Entrando…' : 'Entrar'}
           </Button>
 
           <p className="text-center text-xs text-slate-400">
-            Protótipo de demonstração — HU-01: autenticação via token JWT · HU-14: perfis de
-            acesso ⚠️
+            HU-01: autenticação via token JWT — o papel de acesso (HU-14) vem do usuário
+            cadastrado na API.
           </p>
         </form>
       </div>
