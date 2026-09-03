@@ -25,17 +25,19 @@ interface MapaTalhoesProps {
 /**
  * Talhões têm poucas centenas de metros de lado: sem isto, o mapa abre num
  * zoom que mostra a região inteira e os polígonos somem em meia dúzia de
- * pixels. Enquadra o talhão em foco (+ suas estações mais próximas) toda vez
- * que a seleção muda.
+ * pixels. Enquadra só o talhão em foco — as estações mais próximas (Escopo
+ * V3, até 3, podem estar a dezenas de km) NÃO entram no cálculo do zoom, ou
+ * uma estação distante forçaria a vista a se afastar até incluí-la.
  */
-function FocoTalhao({ talhao, estacoes }: { talhao: Talhao; estacoes: EstacaoProxima[] }) {
+function FocoTalhao({ talhao }: { talhao: Talhao }) {
   const map = useMap()
 
   useEffect(() => {
-    const pontos: [number, number][] = [...talhao.poligono, ...estacoes.map((e) => e.posicao)]
-    if (pontos.length > 0) map.fitBounds(pontos, { padding: [56, 56], maxZoom: 16 })
+    if (talhao.poligono.length > 0) {
+      map.fitBounds(talhao.poligono, { padding: [56, 56], maxZoom: 16 })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [talhao.id, estacoes.length])
+  }, [talhao.id])
 
   return null
 }
@@ -53,7 +55,7 @@ export function MapaTalhoes({
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
       />
 
-      <FocoTalhao talhao={talhaoFoco} estacoes={estacoesFoco} />
+      <FocoTalhao talhao={talhaoFoco} />
 
       {talhoes.map((talhao) => (
         <Polygon
