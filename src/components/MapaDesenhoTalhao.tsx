@@ -12,6 +12,9 @@ import type { LatLngExpression } from 'leaflet'
 
 interface MapaDesenhoTalhaoProps {
   center: [number, number]
+  /** Zoom inicial — mais baixo (nível de cidade) quando o centro vem só do
+   * município escolhido, mais alto (nível de talhão) quando já há um ponto exato. */
+  zoom?: number
   pontos: [number, number][]
   onAdicionarPonto: (ponto: [number, number]) => void
   /** Incrementa a cada importação de arquivo, para o mapa recentralizar no polígono
@@ -49,12 +52,13 @@ function FocoNaImportacao({
 
 export function MapaDesenhoTalhao({
   center,
+  zoom = 16,
   pontos,
   onAdicionarPonto,
   focoVersao = 0,
 }: MapaDesenhoTalhaoProps) {
   return (
-    <MapContainer center={center} zoom={16} className="h-full w-full">
+    <MapContainer center={center} zoom={zoom} className="h-full w-full">
       <TileLayer
         attribution='&copy; <a href="https://www.esri.com">Esri</a>'
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"

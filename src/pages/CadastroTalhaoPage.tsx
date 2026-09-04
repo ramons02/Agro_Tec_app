@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import { MapaDesenhoTalhao } from '../components/MapaDesenhoTalhao'
 import { ApiError } from '../lib/apiClient'
 import { pontosLeafletParaPolygon } from '../lib/geo'
+import { MUNICIPIOS_PARA } from '../lib/municipiosPara'
 import { useAppData } from '../store/AppDataContext'
 import type { Talhao } from '../types'
 
@@ -91,8 +92,23 @@ export function CadastroTalhaoPage() {
       )
     : propriedades
 
-  function centroDaPropriedade(id: string): [number, number] {
-    return talhoes.find((t) => t.propriedadeId === id)?.centro ?? CENTRO_PADRAO
+  /** Prioriza o centro real do talhão já existente; sem talhão ainda, cai para o
+   * centro do município escolhido no cadastro — assim o mapa já abre localizado na
+   * cidade certa em vez de sempre no mesmo ponto padrão do estado inteiro. */
+  function centroEZoomDaPropriedade(id: string): { centro: [number, number]; zoom: number } {
+    const centroTalhaoExistente = talhoes.find((t) => t.propriedadeId === id)?.centro
+    if (centroTalhaoExistente) return { centro: centroTalhaoExistente, zoom: 16 }
+
+    const nomeMunicipio =
+      id === NOVA_PROPRIEDADE
+        ? novaPropriedadeMunicipio
+        : propriedades.find((p) => p.id === id)?.municipio
+    const municipio = nomeMunicipio
+      ? MUNICIPIOS_PARA.find((m) => m.nome === nomeMunicipio)
+      : undefined
+    if (municipio) return { centro: [municipio.lat, municipio.lng], zoom: 12 }
+
+    return { centro: CENTRO_PADRAO, zoom: 16 }
   }
 
   async function irParaGeometria(event: FormEvent) {
@@ -295,13 +311,24 @@ export function CadastroTalhaoPage() {
                     <label className="mb-1.5 block text-sm font-medium text-slate-700">
                       Cidade
                     </label>
-                    <input
+                    <select
                       required
                       value={novaPropriedadeMunicipio}
                       onChange={(e) => setNovaPropriedadeMunicipio(e.target.value)}
-                      placeholder="Ex: Rio Maria"
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    />
+                    >
+                      <option value="" disabled>
+                        Selecione a cidade
+                      </option>
+                      {MUNICIPIOS_PARA.map((m) => (
+                        <option key={m.nome} value={m.nome}>
+                          {m.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      O mapa da próxima etapa já abre localizado nessa cidade.
+                    </p>
                   </div>
                 </div>
               )}
@@ -346,7 +373,8 @@ export function CadastroTalhaoPage() {
 
             <div className="h-[32rem] overflow-hidden rounded-lg border border-slate-200">
               <MapaDesenhoTalhao
-                center={centroDaPropriedade(propriedadeId)}
+                center={centroEZoomDaPropriedade(propriedadeId).centro}
+                zoom={centroEZoomDaPropriedade(propriedadeId).zoom}
                 pontos={pontos}
                 onAdicionarPonto={adicionarPonto}
                 focoVersao={focoVersaoImportacao}
