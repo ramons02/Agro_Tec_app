@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BadgeStatusPlantio } from '../components/ui/Badge'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
@@ -8,6 +9,16 @@ export function PropriedadesPage() {
   const { propriedades, talhoes, removerTalhao, carregando, erro } = useAppData()
   const { papel } = useAuth()
   const podeEscrever = papel !== 'AGRONOMO'
+  const [busca, setBusca] = useState('')
+
+  const termoBusca = busca.trim().toLowerCase()
+  const propriedadesFiltradas = termoBusca
+    ? propriedades.filter(
+        (p) =>
+          p.nome.toLowerCase().includes(termoBusca) ||
+          (p.municipio?.toLowerCase().includes(termoBusca) ?? false),
+      )
+    : propriedades
 
   async function handleExcluir(talhaoId: string, nomeTalhao: string) {
     const confirmado = window.confirm(
@@ -46,8 +57,23 @@ export function PropriedadesPage() {
         </p>
       )}
 
+      {propriedades.length > 0 && (
+        <input
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome da propriedade ou cidade…"
+          className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+        />
+      )}
+
+      {termoBusca && propriedadesFiltradas.length === 0 && (
+        <p className="text-sm text-slate-400">
+          Nenhuma propriedade encontrada para "{busca}".
+        </p>
+      )}
+
       <div className="space-y-4">
-        {propriedades.map((propriedade) => {
+        {propriedadesFiltradas.map((propriedade) => {
           const talhoesDaPropriedade = talhoes.filter(
             (t) => t.propriedadeId === propriedade.id,
           )
@@ -56,7 +82,14 @@ export function PropriedadesPage() {
           return (
             <Card key={propriedade.id}>
               <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-slate-900">{propriedade.nome}</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {propriedade.nome}
+                  {propriedade.municipio && (
+                    <span className="ml-2 font-normal text-slate-400">
+                      {propriedade.municipio}
+                    </span>
+                  )}
+                </p>
                 <span className="text-xs font-medium text-slate-500">
                   {talhoesDaPropriedade.length}{' '}
                   {talhoesDaPropriedade.length === 1 ? 'talhão' : 'talhões'} ·{' '}

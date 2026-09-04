@@ -20,6 +20,7 @@ interface ListaPaginada<T> {
 interface PropriedadeApiShape {
   id: string
   nome: string
+  municipio: string | null
   proprietario_id: string
   geometria: GeometriaGeoJSON | null
 }
@@ -47,7 +48,7 @@ interface AppDataContextValue {
   carregando: boolean
   erro: string | null
   recarregar: () => Promise<void>
-  criarPropriedade: (nome: string) => Promise<Propriedade>
+  criarPropriedade: (nome: string, municipio: string) => Promise<Propriedade>
   criarTalhao: (input: CriarTalhaoInput) => Promise<Talhao>
   removerTalhao: (id: string) => Promise<void>
 }
@@ -87,8 +88,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }
   }, [autenticado, recarregar])
 
-  const criarPropriedade = useCallback(async (nome: string) => {
-    const dados = await apiPost<PropriedadeApiShape>('/api/v1/propriedades', { nome })
+  const criarPropriedade = useCallback(async (nome: string, municipio: string) => {
+    const dados = await apiPost<PropriedadeApiShape>('/api/v1/propriedades', { nome, municipio })
     const propriedade = mapPropriedade(dados)
     setPropriedades((atual) => [...atual, propriedade])
     return propriedade

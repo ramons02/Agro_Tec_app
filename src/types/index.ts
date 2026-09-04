@@ -20,6 +20,7 @@ export type GeometriaGeoJSON = {
 export interface Propriedade {
   id: string
   nome: string
+  municipio: string | null
   proprietarioId: string
   geometria: GeometriaGeoJSON | null
 }

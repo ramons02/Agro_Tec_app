@@ -4,6 +4,7 @@ import type { GeometriaGeoJSON, Propriedade, StatusPlantio, Talhao, TipoSolo } f
 interface PropriedadeApi {
   id: string
   nome: string
+  municipio: string | null
   proprietario_id: string
   geometria: GeometriaGeoJSON | null
 }
@@ -12,6 +13,7 @@ export function mapPropriedade(dados: PropriedadeApi): Propriedade {
   return {
     id: dados.id,
     nome: dados.nome,
+    municipio: dados.municipio,
     proprietarioId: dados.proprietario_id,
     geometria: dados.geometria,
   }

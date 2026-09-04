@@ -68,7 +68,9 @@ export function CadastroTalhaoPage() {
   const [etapa, setEtapa] = useState<Etapa>('DADOS')
   const [nome, setNome] = useState('')
   const [propriedadeId, setPropriedadeId] = useState<string>(propriedades[0]?.id ?? NOVA_PROPRIEDADE)
+  const [buscaPropriedade, setBuscaPropriedade] = useState('')
   const [novaPropriedadeNome, setNovaPropriedadeNome] = useState('')
+  const [novaPropriedadeMunicipio, setNovaPropriedadeMunicipio] = useState('')
   const [pontos, setPontos] = useState<[number, number][]>([])
   const [focoVersaoImportacao, setFocoVersaoImportacao] = useState(0)
   const [erroImportacao, setErroImportacao] = useState<string | null>(null)
@@ -80,6 +82,15 @@ export function CadastroTalhaoPage() {
 
   const criandoNovaPropriedade = propriedadeId === NOVA_PROPRIEDADE
 
+  const termoBusca = buscaPropriedade.trim().toLowerCase()
+  const propriedadesFiltradas = termoBusca
+    ? propriedades.filter(
+        (p) =>
+          p.nome.toLowerCase().includes(termoBusca) ||
+          (p.municipio?.toLowerCase().includes(termoBusca) ?? false),
+      )
+    : propriedades
+
   function centroDaPropriedade(id: string): [number, number] {
     return talhoes.find((t) => t.propriedadeId === id)?.centro ?? CENTRO_PADRAO
   }
@@ -90,7 +101,7 @@ export function CadastroTalhaoPage() {
 
     if (criandoNovaPropriedade) {
       try {
-        const propriedade = await criarPropriedade(novaPropriedadeNome)
+        const propriedade = await criarPropriedade(novaPropriedadeNome, novaPropriedadeMunicipio)
         setPropriedadeId(propriedade.id)
       } catch (excecao) {
         setErroEnvio(excecao instanceof ApiError ? excecao.message : 'Falha ao criar a propriedade.')
@@ -228,6 +239,18 @@ export function CadastroTalhaoPage() {
             <form className="space-y-4" onSubmit={irParaGeometria}>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Buscar propriedade por nome ou cidade
+                </label>
+                <input
+                  value={buscaPropriedade}
+                  onChange={(e) => setBuscaPropriedade(e.target.value)}
+                  placeholder="Ex: Rio Maria"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Propriedade
                 </label>
                 <select
@@ -235,13 +258,18 @@ export function CadastroTalhaoPage() {
                   onChange={(e) => setPropriedadeId(e.target.value)}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
                 >
-                  {propriedades.map((p) => (
+                  {propriedadesFiltradas.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.nome}
+                      {p.municipio ? `${p.nome} — ${p.municipio}` : p.nome}
                     </option>
                   ))}
                   <option value={NOVA_PROPRIEDADE}>+ Cadastrar nova propriedade</option>
                 </select>
+                {termoBusca && propriedadesFiltradas.length === 0 && (
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Nenhuma propriedade encontrada para "{buscaPropriedade}".
+                  </p>
+                )}
               </div>
 
               {criandoNovaPropriedade && (
@@ -259,6 +287,19 @@ export function CadastroTalhaoPage() {
                       value={novaPropriedadeNome}
                       onChange={(e) => setNovaPropriedadeNome(e.target.value)}
                       placeholder="Ex: Fazenda Santa Luzia"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                      Cidade
+                    </label>
+                    <input
+                      required
+                      value={novaPropriedadeMunicipio}
+                      onChange={(e) => setNovaPropriedadeMunicipio(e.target.value)}
+                      placeholder="Ex: Rio Maria"
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
                     />
                   </div>
