@@ -93,7 +93,7 @@ export const MUNICIPIOS_PARA: MunicipioPara[] = [
   { nome: 'Palestina do Pará', lat: -5.74027, lng: -48.3181 },
   { nome: 'Paragominas', lat: -3.00212, lng: -47.3527 },
   { nome: 'Parauapebas', lat: -6.06781, lng: -49.9037 },
-  { nome: 'Pau d'Arco', lat: -1.59772, lng: -46.9268 },
+  { nome: "Pau d'Arco", lat: -1.59772, lng: -46.9268 },
   { nome: 'Peixe-Boi', lat: -1.19382, lng: -47.324 },
   { nome: 'Piçarra', lat: -6.43778, lng: -48.8716 },
   { nome: 'Placas', lat: -3.86813, lng: -54.2124 },
