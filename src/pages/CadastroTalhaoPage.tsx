@@ -190,7 +190,7 @@ export function CadastroTalhaoPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className={`mx-auto space-y-6 ${etapa === 'GEOMETRIA' ? 'max-w-4xl' : 'max-w-2xl'}`}>
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Cadastrar Talhão</h1>
         <p className="text-sm text-slate-500">
@@ -303,7 +303,7 @@ export function CadastroTalhaoPage() {
               importe um GeoJSON já pronto.
             </p>
 
-            <div className="h-72 overflow-hidden rounded-lg border border-slate-200">
+            <div className="h-[32rem] overflow-hidden rounded-lg border border-slate-200">
               <MapaDesenhoTalhao
                 center={centroDaPropriedade(propriedadeId)}
                 pontos={pontos}
