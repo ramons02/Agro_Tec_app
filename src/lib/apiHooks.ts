@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiGet, ApiError } from './apiClient'
 import { pontoGeoJSONParaLeaflet } from './geo'
+import { lerCacheDados, salvarCacheDados } from './indexedDb'
 import type {
   BalancoHidricoResultado,
   ClimaAtual,
@@ -410,26 +411,36 @@ export function useEstacoesDoMapa(ativo: boolean): EstadoConsulta<EstacaoMapa[]>
     apiGet<DadosMapaApi>('/api/v1/mapa/dados')
       .then((resposta) => {
         if (cancelado) return
-        setEstado({
-          dados: resposta.estacoes.map((e) => ({
-            codigo: e.codigo,
-            municipio: e.municipio,
-            posicao: pontoGeoJSONParaLeaflet(e.posicao_geojson),
-            ultimaMedicao: e.ultima_medicao
-              ? {
-                  chuvaMm: e.ultima_medicao.chuva_mm,
-                  ventoKmh: e.ultima_medicao.vento_kmh,
-                  fonteDados: e.ultima_medicao.fonte_dados,
-                }
-              : null,
-          })),
-          carregando: false,
-          erro: null,
-        })
+        const estacoes: EstacaoMapa[] = resposta.estacoes.map((e) => ({
+          codigo: e.codigo,
+          municipio: e.municipio,
+          posicao: pontoGeoJSONParaLeaflet(e.posicao_geojson),
+          ultimaMedicao: e.ultima_medicao
+            ? {
+                chuvaMm: e.ultima_medicao.chuva_mm,
+                ventoKmh: e.ultima_medicao.vento_kmh,
+                fonteDados: e.ultima_medicao.fonte_dados,
+              }
+            : null,
+        }))
+        setEstado({ dados: estacoes, carregando: false, erro: null })
+        void salvarCacheDados('mapa-dados', estacoes)
       })
-      .catch(() => {
+      .catch(async () => {
         if (cancelado) return
-        setEstado({ dados: null, carregando: false, erro: 'Falha ao buscar estações do mapa.' })
+        const cache = await lerCacheDados<EstacaoMapa[]>('mapa-dados')
+        if (cache) {
+          // Offline: mantém as estações (identidade/posição são dado cadastral, não
+          // expira), mas nunca a última medição -- climas velho nunca aparece como
+          // atual (FR-005/contracts/pwa-comportamento.md).
+          setEstado({
+            dados: cache.dados.map((e) => ({ ...e, ultimaMedicao: null })),
+            carregando: false,
+            erro: null,
+          })
+        } else {
+          setEstado({ dados: null, carregando: false, erro: 'Falha ao buscar estações do mapa.' })
+        }
       })
 
     return () => {
