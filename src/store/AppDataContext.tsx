@@ -51,6 +51,7 @@ interface AppDataContextValue {
   criarPropriedade: (nome: string, municipio: string) => Promise<Propriedade>
   criarTalhao: (input: CriarTalhaoInput) => Promise<Talhao>
   removerTalhao: (id: string) => Promise<void>
+  removerPropriedade: (id: string) => Promise<void>
 }
 
 const AppDataContext = createContext<AppDataContextValue | null>(null)
@@ -112,9 +113,35 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setTalhoes((atual) => atual.filter((t) => t.id !== id))
   }, [])
 
+  const removerPropriedade = useCallback(async (id: string) => {
+    await apiDelete(`/api/v1/propriedades/${id}`)
+    setPropriedades((atual) => atual.filter((p) => p.id !== id))
+    setTalhoes((atual) => atual.filter((t) => t.propriedadeId !== id))
+  }, [])
+
   const value = useMemo<AppDataContextValue>(
-    () => ({ propriedades, talhoes, carregando, erro, recarregar, criarPropriedade, criarTalhao, removerTalhao }),
-    [propriedades, talhoes, carregando, erro, recarregar, criarPropriedade, criarTalhao, removerTalhao],
+    () => ({
+      propriedades,
+      talhoes,
+      carregando,
+      erro,
+      recarregar,
+      criarPropriedade,
+      criarTalhao,
+      removerTalhao,
+      removerPropriedade,
+    }),
+    [
+      propriedades,
+      talhoes,
+      carregando,
+      erro,
+      recarregar,
+      criarPropriedade,
+      criarTalhao,
+      removerTalhao,
+      removerPropriedade,
+    ],
   )
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>

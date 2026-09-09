@@ -6,7 +6,7 @@ import { useAppData } from '../store/AppDataContext'
 import { useAuth } from '../store/AuthContext'
 
 export function PropriedadesPage() {
-  const { propriedades, talhoes, removerTalhao, carregando, erro } = useAppData()
+  const { propriedades, talhoes, removerTalhao, removerPropriedade, carregando, erro } = useAppData()
   const { papel } = useAuth()
   const podeEscrever = papel !== 'AGRONOMO'
   const [busca, setBusca] = useState('')
@@ -25,6 +25,14 @@ export function PropriedadesPage() {
       `Excluir "${nomeTalhao}"? Isso remove o talhão e o histórico associado a ele.`,
     )
     if (confirmado) await removerTalhao(talhaoId)
+  }
+
+  async function handleExcluirPropriedade(propriedadeId: string, nomePropriedade: string, qtdTalhoes: number) {
+    const aviso =
+      qtdTalhoes > 0
+        ? `Excluir "${nomePropriedade}"? Isso remove a propriedade, seus ${qtdTalhoes} talhão(ões) e todo o histórico associado.`
+        : `Excluir "${nomePropriedade}"?`
+    if (window.confirm(aviso)) await removerPropriedade(propriedadeId)
   }
 
   return (
@@ -90,11 +98,27 @@ export function PropriedadesPage() {
                     </span>
                   )}
                 </p>
-                <span className="text-xs font-medium text-slate-500">
-                  {talhoesDaPropriedade.length}{' '}
-                  {talhoesDaPropriedade.length === 1 ? 'talhão' : 'talhões'} ·{' '}
-                  {areaTotal.toFixed(1)} ha
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-slate-500">
+                    {talhoesDaPropriedade.length}{' '}
+                    {talhoesDaPropriedade.length === 1 ? 'talhão' : 'talhões'} ·{' '}
+                    {areaTotal.toFixed(1)} ha
+                  </span>
+                  {podeEscrever && (
+                    <button
+                      onClick={() =>
+                        handleExcluirPropriedade(
+                          propriedade.id,
+                          propriedade.nome,
+                          talhoesDaPropriedade.length,
+                        )
+                      }
+                      className="text-xs font-medium text-red-600 hover:text-red-800"
+                    >
+                      Excluir propriedade
+                    </button>
+                  )}
+                </div>
               </CardHeader>
 
               <CardBody className="p-0">
