@@ -82,6 +82,18 @@ export interface PulverizacaoResultado {
 
 export type Prioridade = 'ALTA' | 'MEDIA' | 'BAIXA'
 
+/** Espelha um dia de `GET /previsao` (busca de cidade) — previsão futura da
+ * Open-Meteo, diferente do Balanço Hídrico (que só usa dado medido). */
+export interface PrevisaoDia {
+  data: string
+  temperaturaMinC: number
+  temperaturaMaxC: number
+  precipitacaoPrevistaMm: number
+  probabilidadeChuvaPct: number
+  ventoMaxKmh: number
+  rajadaMaxKmh: number
+}
+
 /** Espelha `GET /talhoes/{id}/recomendacao` (feature 012) — combina status de
  * plantio e pulverização num texto único, calculado no backend. */
 export interface RecomendacaoResultado {

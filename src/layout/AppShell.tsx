@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/propriedades', label: 'Propriedades', icon: BuildingIcon },
   { to: '/pulverizacao', label: 'Pulverização', icon: WindIcon },
   { to: '/plantio', label: 'Janela de Plantio', icon: LeafIcon },
+  { to: '/previsao', label: 'Previsão do Tempo', icon: CloudIcon },
   { to: '/talhoes/novo', label: 'Cadastrar Talhão', icon: PlusIcon, requerEscrita: true },
 ]
 
@@ -138,6 +139,18 @@ function LeafIcon({ className }: IconProps) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
       <path d="M5 13c0-6 4-9 14-9 0 10-4 14-14 14v-5Z" strokeLinejoin="round" />
       <path d="M5 18c4-4 8-6 14-14" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CloudIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path
+        d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 12.06 3.5 3.5 0 0 0 7 18Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }

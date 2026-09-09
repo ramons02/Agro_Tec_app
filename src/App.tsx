@@ -9,6 +9,7 @@ import { PropriedadesPage } from './pages/PropriedadesPage'
 import { CadastroTalhaoPage } from './pages/CadastroTalhaoPage'
 import { PulverizacaoPage } from './pages/PulverizacaoPage'
 import { DashboardPlantioPage } from './pages/DashboardPlantioPage'
+import { PrevisaoTempoPage } from './pages/PrevisaoTempoPage'
 import { useAuth } from './store/AuthContext'
 
 function RotaProtegida({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/talhoes/novo" element={<CadastroTalhaoPage />} />
         <Route path="/pulverizacao" element={<PulverizacaoPage />} />
         <Route path="/plantio" element={<DashboardPlantioPage />} />
+        <Route path="/previsao" element={<PrevisaoTempoPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

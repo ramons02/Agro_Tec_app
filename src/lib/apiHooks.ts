@@ -6,6 +6,7 @@ import type {
   ClimaAtual,
   EstacaoMapa,
   EstacaoProxima,
+  PrevisaoDia,
   PulverizacaoResultado,
   RecomendacaoResultado,
 } from '../types'
@@ -275,6 +276,68 @@ export function useBalancoHidrico(talhaoId: string | null): EstadoConsulta<Balan
       cancelado = true
     }
   }, [talhaoId])
+
+  return estado
+}
+
+interface PrevisaoApi {
+  dias: {
+    data: string
+    temperatura_min_c: number
+    temperatura_max_c: number
+    precipitacao_prevista_mm: number
+    probabilidade_chuva_pct: number
+    vento_max_kmh: number
+    rajada_max_kmh: number
+  }[]
+}
+
+/** Previsão de 10 dias por coordenada (`GET /previsao`) — busca de cidade, sem
+ * relação com talhão/propriedade. `coordenada` nulo desativa a busca. */
+export function usePrevisao10Dias(
+  coordenada: { lat: number; lon: number } | null,
+): EstadoConsulta<PrevisaoDia[]> {
+  const [estado, setEstado] = useState<EstadoConsulta<PrevisaoDia[]>>({
+    dados: null,
+    carregando: false,
+    erro: null,
+  })
+
+  useEffect(() => {
+    if (!coordenada) return
+    let cancelado = false
+    setEstado({ dados: null, carregando: true, erro: null })
+
+    apiGet<PrevisaoApi>(`/api/v1/previsao?lat=${coordenada.lat}&lon=${coordenada.lon}`)
+      .then((resposta) => {
+        if (cancelado) return
+        setEstado({
+          dados: resposta.dias.map((dia) => ({
+            data: dia.data,
+            temperaturaMinC: dia.temperatura_min_c,
+            temperaturaMaxC: dia.temperatura_max_c,
+            precipitacaoPrevistaMm: dia.precipitacao_prevista_mm,
+            probabilidadeChuvaPct: dia.probabilidade_chuva_pct,
+            ventoMaxKmh: dia.vento_max_kmh,
+            rajadaMaxKmh: dia.rajada_max_kmh,
+          })),
+          carregando: false,
+          erro: null,
+        })
+      })
+      .catch((erro: unknown) => {
+        if (cancelado) return
+        setEstado({
+          dados: null,
+          carregando: false,
+          erro: erro instanceof ApiError ? erro.message : 'Falha ao buscar previsão do tempo.',
+        })
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [coordenada?.lat, coordenada?.lon])
 
   return estado
 }
