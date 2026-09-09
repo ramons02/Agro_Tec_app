@@ -66,7 +66,7 @@ export function DashboardPlantioPage() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Status de Plantio por Talhão</h1>
           <p className="text-sm text-slate-500">
-            Balanço Hídrico do Solo (HU-10) consolidado em painel de decisão (HU-11).
+            Balanço Hídrico do Solo consolidado em painel de decisão.
           </p>
         </div>
         <Button

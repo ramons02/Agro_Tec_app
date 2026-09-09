@@ -10,7 +10,7 @@ const REGRAS = [
   { label: 'Favorável / Liberado', faixa: 'Vento 3-10 km/h, rajada ≤15 km/h, Delta T 2-10°C' },
   { label: 'Bloqueio: vento forte', faixa: 'Vento > 10 km/h ou rajada > 15 km/h' },
   { label: 'Bloqueio: inversão térmica', faixa: 'Vento < 3 km/h ou Delta T < 2°C' },
-  { label: 'Bloqueio: evaporação excessiva', faixa: 'Delta T > 10°C (Escopo V3)' },
+  { label: 'Bloqueio: evaporação excessiva', faixa: 'Delta T > 10°C' },
 ]
 
 export function PulverizacaoPage() {
@@ -21,8 +21,8 @@ export function PulverizacaoPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Janela de Pulverização</h1>
         <p className="text-sm text-slate-500">
-          Consulta em tempo real, sem cache expirado (HU-08), combinando vento/rajada
-          (HU-09) e Delta T (Escopo V3) por talhão.
+          Consulta em tempo real, sem cache expirado, combinando vento/rajada e Delta T
+          por talhão.
         </p>
       </div>
 
