@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { aoMudarFila, contarAcoesPendentes, iniciarSincronizacaoAutomatica } from '../lib/filaSincronizacao'
 import { useAuth } from '../store/AuthContext'
 import type { Papel } from '../types'
 
@@ -23,11 +25,49 @@ const PAPEL_INICIAIS: Record<Papel, string> = {
   GESTOR_TECNOLOGIA: 'GT',
 }
 
+/** Offline/sincronizando/online (RI014, HU-16 US3) -- navigator.onLine + eventos
+ * online/offline do navegador, refletindo a fila de sincronização pendente. */
+function useEstadoConexao() {
+  const [online, setOnline] = useState(() => navigator.onLine)
+  const [pendentes, setPendentes] = useState(0)
+
+  useEffect(() => {
+    iniciarSincronizacaoAutomatica()
+
+    function atualizarPendentes() {
+      void contarAcoesPendentes().then(setPendentes)
+    }
+
+    atualizarPendentes()
+    const pararDeOuvirFila = aoMudarFila(atualizarPendentes)
+
+    function aoFicarOnline() {
+      setOnline(true)
+    }
+    function aoFicarOffline() {
+      setOnline(false)
+    }
+    window.addEventListener('online', aoFicarOnline)
+    window.addEventListener('offline', aoFicarOffline)
+
+    return () => {
+      pararDeOuvirFila()
+      window.removeEventListener('online', aoFicarOnline)
+      window.removeEventListener('offline', aoFicarOffline)
+    }
+  }, [])
+
+  if (!online) return { rotulo: 'Modo offline', cor: 'bg-slate-200 text-slate-600' } as const
+  if (pendentes > 0) return { rotulo: 'Sincronizando…', cor: 'bg-amber-100 text-amber-700' } as const
+  return null
+}
+
 export function AppShell() {
   const navigate = useNavigate()
   const { papel, sair } = useAuth()
   const podeEscrever = papel !== 'AGRONOMO'
   const itensVisiveis = NAV_ITEMS.filter((item) => podeEscrever || !item.requerEscrita)
+  const estadoConexao = useEstadoConexao()
 
   function handleSair() {
     sair()
@@ -85,6 +125,13 @@ export function AppShell() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {estadoConexao && (
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-medium ${estadoConexao.cor}`}
+              >
+                {estadoConexao.rotulo}
+              </span>
+            )}
             <span className="hidden text-xs font-medium text-slate-500 sm:inline">
               {papel ? PAPEL_LABEL[papel] : ''}
             </span>
