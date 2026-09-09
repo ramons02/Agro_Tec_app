@@ -1,12 +1,12 @@
-import { gerarHistorico } from './historico'
 import type { EnriquecimentoSimulado, StatusPlantio } from '../types'
 
 /**
- * Não há endpoint de série histórica de umidade do solo na API
- * (`Agro_Tec_api`) — a Recomendação (feature 012) já é real (`useRecomendacao`),
- * só o `GraficoUmidade` continua alimentado por um valor determinístico
- * derivado do id real do talhão (não é aleatório, não muda a cada render, mas
- * também NÃO é dado real — nunca usar fora do gráfico).
+ * Não há sensor de umidade de solo por profundidade na API (`Agro_Tec_api`) --
+ * só o Balanço Hídrico agregado (esse sim real, ver `useBalancoHidrico`/
+ * `useBalancoHidricoHistorico`). Estes dois valores continuam alimentados por
+ * um número determinístico derivado do id real do talhão (não é aleatório,
+ * não muda a cada render, mas também NÃO é dado real — nunca usar fora
+ * dessas duas linhas marcadas "(simulado)" na tela).
  */
 function hashDeterministico(texto: string): number {
   let hash = 0
@@ -22,12 +22,6 @@ const UMIDADE_BASE_POR_STATUS: Record<StatusPlantio, number> = {
   VERMELHO: 0.09,
 }
 
-const TENDENCIA_POR_STATUS: Record<StatusPlantio, number> = {
-  VERDE: 0.006,
-  AMARELO: -0.006,
-  VERMELHO: -0.016,
-}
-
 export function gerarEnriquecimentoSimulado(
   talhaoId: string,
   statusPlantio: StatusPlantio | null,
@@ -37,9 +31,5 @@ export function gerarEnriquecimentoSimulado(
   const umidadeSolo0_7cm = Math.max(0.03, Math.min(0.5, UMIDADE_BASE_POR_STATUS[status] + ruido))
   const capacidadeCampo = Math.max(0.15, Math.min(0.4, umidadeSolo0_7cm + 0.08))
 
-  return {
-    umidadeSolo0_7cm,
-    capacidadeCampo,
-    historicoUmidade: gerarHistorico(umidadeSolo0_7cm, TENDENCIA_POR_STATUS[status]),
-  }
+  return { umidadeSolo0_7cm, capacidadeCampo }
 }

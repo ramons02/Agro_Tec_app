@@ -128,11 +128,9 @@ export interface EstacaoMapa {
   } | null
 }
 
-/** Dados só usados para alimentar o gráfico de umidade (`GraficoUmidade`) —
- * não há endpoint de série histórica de umidade do solo na API; a
- * Recomendação (feature 012) em si já é real, vem de `useRecomendacao`. */
+/** Umidade/capacidade de campo por profundidade não têm sensor na API — só
+ * essas duas estimativas continuam simuladas (marcadas "(simulado)" na tela). */
 export interface EnriquecimentoSimulado {
   umidadeSolo0_7cm: number
   capacidadeCampo: number
-  historicoUmidade: PontoHistoricoUmidade[]
 }

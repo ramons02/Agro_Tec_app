@@ -16,6 +16,9 @@ interface GraficoUmidadeProps {
   historico: PontoHistoricoUmidade[]
   statusAtual: StatusPlantio
   variante?: 'compacta' | 'detalhada'
+  /** Texto após o percentual no tooltip — o gráfico é genérico (qualquer série 0-1 no
+   * tempo), usado tanto pra umidade simulada quanto pro % da CAD real. */
+  rotuloTooltip?: string
 }
 
 function formatarDataCurta(iso: string) {
@@ -23,7 +26,11 @@ function formatarDataCurta(iso: string) {
   return `${dia}/${mes}`
 }
 
-function TooltipUmidade({ active, payload }: TooltipContentProps) {
+function TooltipUmidade({
+  active,
+  payload,
+  rotulo,
+}: TooltipContentProps & { rotulo: string }) {
   if (!active || !payload?.length) return null
   const ponto = payload[0].payload as PontoHistoricoUmidade
 
@@ -31,7 +38,7 @@ function TooltipUmidade({ active, payload }: TooltipContentProps) {
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-md">
       <p className="font-medium text-slate-500">{formatarDataCurta(ponto.data)}</p>
       <p className="font-semibold text-slate-800">
-        {(ponto.umidade * 100).toFixed(0)}% de umidade
+        {(ponto.umidade * 100).toFixed(0)}% {rotulo}
       </p>
     </div>
   )
@@ -41,6 +48,7 @@ export function GraficoUmidade({
   historico,
   statusAtual,
   variante = 'detalhada',
+  rotuloTooltip = 'de umidade',
 }: GraficoUmidadeProps) {
   const corPontoAtual = STATUS_PLANTIO_COR_MAPA[statusAtual]
   const compacta = variante === 'compacta'
@@ -103,7 +111,10 @@ export function GraficoUmidade({
           </>
         )}
 
-        <Tooltip content={TooltipUmidade} cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }} />
+        <Tooltip
+          content={(props) => <TooltipUmidade {...props} rotulo={rotuloTooltip} />}
+          cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+        />
 
         <Area
           type="monotone"

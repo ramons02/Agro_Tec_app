@@ -6,6 +6,7 @@ import type {
   ClimaAtual,
   EstacaoMapa,
   EstacaoProxima,
+  PontoHistoricoUmidade,
   PrevisaoDia,
   PulverizacaoResultado,
   RecomendacaoResultado,
@@ -270,6 +271,47 @@ export function useBalancoHidrico(talhaoId: string | null): EstadoConsulta<Balan
         const mensagem =
           erro instanceof ApiError && erro.codigo === 404 ? null : 'Falha ao buscar balanço hídrico.'
         setEstado({ dados: null, carregando: false, erro: mensagem })
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [talhaoId])
+
+  return estado
+}
+
+interface BalancoHidricoHistoricoApi {
+  dias: { data: string; percentual_cad: number; status_plantio: string }[]
+}
+
+/** Histórico real (não simulado) dos últimos dias do Balanço Hídrico calculados
+ * pra esse talhão — só os dias que existirem (pode ser 1, pode ser 10). Usa o
+ * mesmo formato de `GraficoUmidade` (fração 0-1 em `umidade`). */
+export function useBalancoHidricoHistorico(talhaoId: string | null): EstadoConsulta<PontoHistoricoUmidade[]> {
+  const [estado, setEstado] = useState<EstadoConsulta<PontoHistoricoUmidade[]>>({
+    dados: null,
+    carregando: false,
+    erro: null,
+  })
+
+  useEffect(() => {
+    if (!talhaoId) return
+    let cancelado = false
+    setEstado({ dados: null, carregando: true, erro: null })
+
+    apiGet<BalancoHidricoHistoricoApi>(`/api/v1/talhoes/${talhaoId}/balanco-hidrico/historico`)
+      .then((resposta) => {
+        if (cancelado) return
+        setEstado({
+          dados: resposta.dias.map((dia) => ({ data: dia.data, umidade: dia.percentual_cad / 100 })),
+          carregando: false,
+          erro: null,
+        })
+      })
+      .catch(() => {
+        if (cancelado) return
+        setEstado({ dados: [], carregando: false, erro: null })
       })
 
     return () => {

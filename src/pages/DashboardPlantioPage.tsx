@@ -5,9 +5,9 @@ import { Card, CardBody } from '../components/ui/Card'
 import { GraficoUmidade } from '../components/GraficoUmidade'
 import { apiGetBlob, ApiError } from '../lib/apiClient'
 import { salvarArquivo } from '../lib/exportarCsv'
-import { gerarEnriquecimentoSimulado } from '../lib/enriquecimentoSimulado'
+import { useBalancoHidricoHistorico } from '../lib/apiHooks'
 import { useAppData } from '../store/AppDataContext'
-import type { StatusPlantio } from '../types'
+import type { Propriedade, StatusPlantio, Talhao } from '../types'
 
 const FILTROS_STATUS: Array<{ valor: StatusPlantio | 'TODOS'; label: string }> = [
   { valor: 'TODOS', label: 'Todos' },
@@ -125,53 +125,13 @@ export function DashboardPlantioPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {talhoesFiltrados.map((talhao) => {
-          const propriedade = propriedades.find((p) => p.id === talhao.propriedadeId)
-          const { historicoUmidade } = gerarEnriquecimentoSimulado(talhao.id, talhao.statusPlantio)
-          return (
-            <Card key={talhao.id}>
-              <CardBody className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{talhao.nome}</p>
-                    <p className="text-xs text-slate-500">{propriedade?.nome}</p>
-                  </div>
-                  {talhao.statusPlantio ? (
-                    <BadgeStatusPlantio status={talhao.statusPlantio} />
-                  ) : (
-                    <span className="text-xs text-slate-400">Sem cálculo</span>
-                  )}
-                </div>
-
-                <dl className="grid grid-cols-2 gap-y-2 text-sm">
-                  <dt className="text-slate-500">Área</dt>
-                  <dd className="text-right font-medium text-slate-800">
-                    {talhao.areaHa.toFixed(1)} ha
-                  </dd>
-                  <dt className="text-slate-500">Solo</dt>
-                  <dd className="text-right font-medium text-slate-800">
-                    {talhao.tipoSolo ?? '—'}
-                  </dd>
-                  <dt className="text-slate-500">% da CAD</dt>
-                  <dd className="text-right font-medium text-slate-800">
-                    {talhao.percentualCad !== null ? `${talhao.percentualCad.toFixed(0)}%` : '—'}
-                  </dd>
-                </dl>
-
-                <div className="border-t border-slate-100 pt-2">
-                  <p className="mb-1 text-xs text-slate-400">
-                    Últimos 10 dias (simulado — sem série histórica na API)
-                  </p>
-                  <GraficoUmidade
-                    historico={historicoUmidade}
-                    statusAtual={talhao.statusPlantio ?? 'AMARELO'}
-                    variante="compacta"
-                  />
-                </div>
-              </CardBody>
-            </Card>
-          )
-        })}
+        {talhoesFiltrados.map((talhao) => (
+          <CardTalhaoPlantio
+            key={talhao.id}
+            talhao={talhao}
+            propriedade={propriedades.find((p) => p.id === talhao.propriedadeId)}
+          />
+        ))}
 
         {talhoesFiltrados.length === 0 && !carregando && (
           <p className="col-span-3 py-8 text-center text-sm text-slate-400">
@@ -180,6 +140,53 @@ export function DashboardPlantioPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function CardTalhaoPlantio({ talhao, propriedade }: { talhao: Talhao; propriedade: Propriedade | undefined }) {
+  const { dados: historicoReal } = useBalancoHidricoHistorico(talhao.id)
+
+  return (
+    <Card>
+      <CardBody className="space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{talhao.nome}</p>
+            <p className="text-xs text-slate-500">{propriedade?.nome}</p>
+          </div>
+          {talhao.statusPlantio ? (
+            <BadgeStatusPlantio status={talhao.statusPlantio} />
+          ) : (
+            <span className="text-xs text-slate-400">Sem cálculo</span>
+          )}
+        </div>
+
+        <dl className="grid grid-cols-2 gap-y-2 text-sm">
+          <dt className="text-slate-500">Área</dt>
+          <dd className="text-right font-medium text-slate-800">{talhao.areaHa.toFixed(1)} ha</dd>
+          <dt className="text-slate-500">Solo</dt>
+          <dd className="text-right font-medium text-slate-800">{talhao.tipoSolo ?? '—'}</dd>
+          <dt className="text-slate-500">% da CAD</dt>
+          <dd className="text-right font-medium text-slate-800">
+            {talhao.percentualCad !== null ? `${talhao.percentualCad.toFixed(0)}%` : '—'}
+          </dd>
+        </dl>
+
+        <div className="border-t border-slate-100 pt-2">
+          <p className="mb-1 text-xs text-slate-400">% da CAD — últimos dias (real)</p>
+          {historicoReal && historicoReal.length > 0 ? (
+            <GraficoUmidade
+              historico={historicoReal}
+              statusAtual={talhao.statusPlantio ?? 'AMARELO'}
+              variante="compacta"
+              rotuloTooltip="da CAD"
+            />
+          ) : (
+            <p className="text-xs text-slate-400">Sem histórico calculado ainda.</p>
+          )}
+        </div>
+      </CardBody>
+    </Card>
   )
 }
 

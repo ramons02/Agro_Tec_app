@@ -1,5 +1,11 @@
 import { gerarEnriquecimentoSimulado } from '../lib/enriquecimentoSimulado'
-import { useBalancoHidrico, useClimaAtual, usePulverizacao, useRecomendacao } from '../lib/apiHooks'
+import {
+  useBalancoHidrico,
+  useBalancoHidricoHistorico,
+  useClimaAtual,
+  usePulverizacao,
+  useRecomendacao,
+} from '../lib/apiHooks'
 import type { EstacaoProxima, Talhao } from '../types'
 import { BadgeStatusPlantio, BadgeStatusPulverizacao } from './ui/Badge'
 import { Card, CardBody, CardHeader } from './ui/Card'
@@ -16,7 +22,8 @@ export function PainelTalhao({ talhao, estacaoMaisProxima }: PainelTalhaoProps) 
   const { dados: pulverizacao } = usePulverizacao(talhao.id)
   const { dados: recomendacao } = useRecomendacao(talhao.id)
   const { dados: balancoHidrico } = useBalancoHidrico(talhao.id)
-  const { umidadeSolo0_7cm, capacidadeCampo, historicoUmidade } = gerarEnriquecimentoSimulado(
+  const { dados: historicoReal } = useBalancoHidricoHistorico(talhao.id)
+  const { umidadeSolo0_7cm, capacidadeCampo } = gerarEnriquecimentoSimulado(
     talhao.id,
     talhao.statusPlantio,
   )
@@ -91,13 +98,20 @@ export function PainelTalhao({ talhao, estacaoMaisProxima }: PainelTalhaoProps) 
 
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Umidade do solo — últimos 10 dias (simulado)
+            % da CAD — últimos dias (real)
           </h3>
-          <GraficoUmidade
-            historico={historicoUmidade}
-            statusAtual={talhao.statusPlantio ?? 'AMARELO'}
-            variante="detalhada"
-          />
+          {historicoReal && historicoReal.length > 0 ? (
+            <GraficoUmidade
+              historico={historicoReal}
+              statusAtual={talhao.statusPlantio ?? 'AMARELO'}
+              variante="detalhada"
+              rotuloTooltip="da CAD"
+            />
+          ) : (
+            <p className="text-sm text-slate-400">
+              Ainda não há dias suficientes de balanço hídrico calculado.
+            </p>
+          )}
         </section>
 
         <section>
