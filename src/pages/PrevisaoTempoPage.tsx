@@ -1,7 +1,32 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import L from 'leaflet'
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import { Card, CardBody } from '../components/ui/Card'
 import { usePrevisao10Dias } from '../lib/apiHooks'
 import { MUNICIPIOS_PARA, type MunicipioPara } from '../lib/municipiosPara'
+
+const cidadeIcon = L.divIcon({
+  className: '',
+  html: `<div style="
+    width: 18px; height: 18px; border-radius: 9999px;
+    background: #059669; border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  "></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+})
+
+/** MapContainer só recebe `center` na montagem -- sem isto, trocar de cidade não move o
+ * mapa (mesma limitação/solução do FocoTalhao em MapaTalhoes.tsx). */
+function FocoCidade({ posicao }: { posicao: [number, number] }) {
+  const map = useMap()
+
+  useEffect(() => {
+    map.setView(posicao, 11)
+  }, [map, posicao])
+
+  return null
+}
 
 function formatarDia(data: string) {
   const [ano, mes, dia] = data.split('-').map(Number)
@@ -91,6 +116,21 @@ export function PrevisaoTempoPage() {
         <p className="text-sm text-slate-400">
           Digite o nome de uma cidade acima pra ver a previsão.
         </p>
+      )}
+
+      {cidade && (
+        <div className="h-80 overflow-hidden rounded-xl border border-slate-200">
+          <MapContainer center={[cidade.lat, cidade.lng]} zoom={11} className="h-full w-full">
+            <TileLayer
+              attribution='&copy; <a href="https://www.esri.com">Esri</a>'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            />
+            <FocoCidade posicao={[cidade.lat, cidade.lng]} />
+            <Marker position={[cidade.lat, cidade.lng]} icon={cidadeIcon}>
+              <Popup>{cidade.nome}</Popup>
+            </Marker>
+          </MapContainer>
+        </div>
       )}
 
       {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
