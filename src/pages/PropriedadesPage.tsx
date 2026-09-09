@@ -41,8 +41,7 @@ export function PropriedadesPage() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Propriedades e Talhões</h1>
           <p className="text-sm text-slate-500">
-            Gestão territorial (HU-05): todas as propriedades cadastradas e os talhões
-            dentro de cada uma.
+            Todas as propriedades cadastradas e os talhões dentro de cada uma.
           </p>
         </div>
         {podeEscrever && (

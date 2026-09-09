@@ -221,8 +221,7 @@ export function CadastroTalhaoPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Cadastrar Talhão</h1>
         <p className="text-sm text-slate-500">
-          Delimite o talhão e deixe a textura do solo ser preenchida automaticamente (HU-05
-          e HU-04).
+          Delimite o talhão e deixe a textura do solo ser preenchida automaticamente.
         </p>
       </div>
 
