@@ -90,6 +90,17 @@ export interface RecomendacaoResultado {
   aviso: string
 }
 
+/** Espelha `GET /talhoes/{id}/balanco-hidrico` (feature 010) — o cálculo diário
+ * mais recente, com a chuva medida e a evapotranspiração que entraram na conta. */
+export interface BalancoHidricoResultado {
+  data: string
+  armazenamentoMm: number
+  cadMm: number
+  percentualCad: number
+  precipitacaoMm: number
+  evapotranspiracaoMm: number
+}
+
 /** Espelha uma estação em `GET /mapa/dados` (feature 007) — visão geral do
  * mapa, com a última medição para o popup (FR-003). Diferente de
  * `EstacaoProxima`: aqui não há conceito de "mais próxima de um talhão", é a

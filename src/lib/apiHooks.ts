@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { apiGet, ApiError } from './apiClient'
 import { pontoGeoJSONParaLeaflet } from './geo'
 import type {
+  BalancoHidricoResultado,
   ClimaAtual,
   EstacaoMapa,
   EstacaoProxima,
@@ -212,6 +213,61 @@ export function useRecomendacao(talhaoId: string | null): EstadoConsulta<Recomen
         if (cancelado) return
         const mensagem =
           erro instanceof ApiError && erro.codigo === 404 ? null : 'Falha ao buscar recomendação.'
+        setEstado({ dados: null, carregando: false, erro: mensagem })
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [talhaoId])
+
+  return estado
+}
+
+interface BalancoHidricoApi {
+  data: string
+  armazenamento_mm: number
+  cad_mm: number
+  percentual_cad: number
+  precipitacao_mm: number
+  evapotranspiracao_mm: number
+}
+
+/** Último cálculo diário do Balanço Hídrico do talhão (feature 010) — mostra a
+ * chuva medida e a evapotranspiração usadas, pra dar visibilidade real do dado
+ * que decide o status de plantio (não só o % da CAD já resumido). */
+export function useBalancoHidrico(talhaoId: string | null): EstadoConsulta<BalancoHidricoResultado> {
+  const [estado, setEstado] = useState<EstadoConsulta<BalancoHidricoResultado>>({
+    dados: null,
+    carregando: false,
+    erro: null,
+  })
+
+  useEffect(() => {
+    if (!talhaoId) return
+    let cancelado = false
+    setEstado({ dados: null, carregando: true, erro: null })
+
+    apiGet<BalancoHidricoApi>(`/api/v1/talhoes/${talhaoId}/balanco-hidrico`)
+      .then((resposta) => {
+        if (cancelado) return
+        setEstado({
+          dados: {
+            data: resposta.data,
+            armazenamentoMm: resposta.armazenamento_mm,
+            cadMm: resposta.cad_mm,
+            percentualCad: resposta.percentual_cad,
+            precipitacaoMm: resposta.precipitacao_mm,
+            evapotranspiracaoMm: resposta.evapotranspiracao_mm,
+          },
+          carregando: false,
+          erro: null,
+        })
+      })
+      .catch((erro: unknown) => {
+        if (cancelado) return
+        const mensagem =
+          erro instanceof ApiError && erro.codigo === 404 ? null : 'Falha ao buscar balanço hídrico.'
         setEstado({ dados: null, carregando: false, erro: mensagem })
       })
 

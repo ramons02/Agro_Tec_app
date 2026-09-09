@@ -1,5 +1,5 @@
 import { gerarEnriquecimentoSimulado } from '../lib/enriquecimentoSimulado'
-import { useClimaAtual, usePulverizacao, useRecomendacao } from '../lib/apiHooks'
+import { useBalancoHidrico, useClimaAtual, usePulverizacao, useRecomendacao } from '../lib/apiHooks'
 import type { EstacaoProxima, Talhao } from '../types'
 import { BadgeStatusPlantio, BadgeStatusPulverizacao } from './ui/Badge'
 import { Card, CardBody, CardHeader } from './ui/Card'
@@ -15,6 +15,7 @@ export function PainelTalhao({ talhao, estacaoMaisProxima }: PainelTalhaoProps) 
   const { dados: clima } = useClimaAtual(talhao.id)
   const { dados: pulverizacao } = usePulverizacao(talhao.id)
   const { dados: recomendacao } = useRecomendacao(talhao.id)
+  const { dados: balancoHidrico } = useBalancoHidrico(talhao.id)
   const { umidadeSolo0_7cm, capacidadeCampo, historicoUmidade } = gerarEnriquecimentoSimulado(
     talhao.id,
     talhao.statusPlantio,
@@ -62,6 +63,30 @@ export function PainelTalhao({ talhao, estacaoMaisProxima }: PainelTalhaoProps) 
               {talhao.percentualCad !== null ? `${talhao.percentualCad.toFixed(0)}%` : '—'}
             </dd>
           </dl>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Balanço hídrico do dia (real)
+          </h3>
+          {balancoHidrico ? (
+            <dl className="grid grid-cols-2 gap-y-2 text-sm">
+              <dt className="text-slate-500">Data do cálculo</dt>
+              <dd className="text-right font-medium text-slate-800">{balancoHidrico.data}</dd>
+              <dt className="text-slate-500">Chuva medida</dt>
+              <dd className="text-right font-medium text-slate-800">
+                {balancoHidrico.precipitacaoMm.toFixed(1)} mm
+              </dd>
+              <dt className="text-slate-500">Evapotranspiração</dt>
+              <dd className="text-right font-medium text-slate-800">
+                {balancoHidrico.evapotranspiracaoMm.toFixed(1)} mm
+              </dd>
+            </dl>
+          ) : (
+            <p className="text-sm text-slate-400">
+              Ainda sem balanço hídrico calculado pra este talhão.
+            </p>
+          )}
         </section>
 
         <section>
