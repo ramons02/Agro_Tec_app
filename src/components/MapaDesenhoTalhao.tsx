@@ -58,10 +58,11 @@ export function MapaDesenhoTalhao({
   focoVersao = 0,
 }: MapaDesenhoTalhaoProps) {
   return (
-    <MapContainer center={center} zoom={zoom} className="h-full w-full">
+    <MapContainer center={center} zoom={zoom} maxZoom={19} className="h-full w-full">
       <TileLayer
         attribution='&copy; <a href="https://www.esri.com">Esri</a>'
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        maxNativeZoom={17}
       />
 
       <CapturaCliques onClick={onAdicionarPonto} />

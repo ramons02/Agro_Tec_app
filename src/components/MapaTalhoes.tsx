@@ -44,10 +44,11 @@ function FocoTalhao({ talhao }: { talhao: Talhao }) {
 
 export function MapaTalhoes({ talhoes, estacoes, onSelecionarTalhao, talhaoFoco }: MapaTalhoesProps) {
   return (
-    <MapContainer center={talhaoFoco.centro} zoom={15} className="h-full w-full">
+    <MapContainer center={talhaoFoco.centro} zoom={15} maxZoom={19} className="h-full w-full">
       <TileLayer
         attribution='&copy; <a href="https://www.esri.com">Esri</a>'
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        maxNativeZoom={17}
       />
 
       <FocoTalhao talhao={talhaoFoco} />
