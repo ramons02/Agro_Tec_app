@@ -119,11 +119,13 @@ export function PrevisaoTempoPage() {
       )}
 
       {cidade && (
-        <div className="h-80 overflow-hidden rounded-xl border border-slate-200">
+        <div className="h-[36rem] overflow-hidden rounded-xl border border-slate-200">
           <MapContainer center={[cidade.lat, cidade.lng]} zoom={11} className="h-full w-full">
             <TileLayer
               attribution='&copy; <a href="https://www.esri.com">Esri</a>'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxNativeZoom={17}
+              maxZoom={19}
             />
             <FocoCidade posicao={[cidade.lat, cidade.lng]} />
             <Marker position={[cidade.lat, cidade.lng]} icon={cidadeIcon}>
