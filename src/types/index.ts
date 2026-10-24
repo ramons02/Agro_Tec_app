@@ -51,22 +51,13 @@ export interface Talhao {
   percentualCad: number | null
 }
 
-/** Espelha um item de `GET /talhoes/{id}/estacao-mais-proxima`. */
-export interface EstacaoProxima {
-  estacaoCodigo: string
-  municipio: string
-  distanciaKm: number
-  posicao: [number, number] // [lat, lng]
-}
-
-/** Espelha `GET /clima/atual?talhao_id=` — já combinado por IDW entre as estações
- * mais próximas do talhão (Escopo V3), não é mais "por estação" isolada. */
+/** Espelha `GET /clima/atual?talhao_id=` — valor de modelo no centroide do talhão
+ * (não há mais estações). */
 export interface ClimaAtual {
-  estacao: string
   chuvaMm: number | null
   ventoKmh: number | null
   rajadaKmh: number | null
-  fonteDados: 'AO_VIVO' | 'PREVISAO' | string
+  fonteDados: 'PREVISAO' | 'CACHE_EXPIRADO' | string
   medidoEmUtc: string
 }
 
@@ -111,21 +102,6 @@ export interface BalancoHidricoResultado {
   percentualCad: number
   precipitacaoMm: number
   evapotranspiracaoMm: number
-}
-
-/** Espelha uma estação em `GET /mapa/dados` (feature 007) — visão geral do
- * mapa, com a última medição para o popup (FR-003). Diferente de
- * `EstacaoProxima`: aqui não há conceito de "mais próxima de um talhão", é a
- * lista completa de estações (infraestrutura pública, sem RBAC). */
-export interface EstacaoMapa {
-  codigo: string
-  municipio: string
-  posicao: [number, number] // [lat, lng]
-  ultimaMedicao: {
-    chuvaMm: number | null
-    ventoKmh: number | null
-    fonteDados: string
-  } | null
 }
 
 /** Umidade/capacidade de campo por profundidade não têm sensor na API — só

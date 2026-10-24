@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react'
 import { apiGet, ApiError } from './apiClient'
-import { pontoGeoJSONParaLeaflet } from './geo'
-import { lerCacheDados, salvarCacheDados } from './indexedDb'
 import type {
   BalancoHidricoResultado,
   ClimaAtual,
-  EstacaoMapa,
-  EstacaoProxima,
   PontoHistoricoUmidade,
   PrevisaoDia,
   PulverizacaoResultado,
@@ -19,61 +15,7 @@ interface EstadoConsulta<T> {
   erro: string | null
 }
 
-interface EstacoesProximasApi {
-  estacoes: {
-    estacao_codigo: string
-    municipio: string
-    distancia_km: number
-    latitude: number
-    longitude: number
-  }[]
-}
-
-/** As 3 estações INMET mais próximas do talhão (Escopo V3, RF035) — usadas na
- * interpolação IDW do clima atual. `null` enquanto carrega ou se não há
- * estação cadastrada perto o suficiente. */
-export function useEstacoesProximas(talhaoId: string | null): EstadoConsulta<EstacaoProxima[]> {
-  const [estado, setEstado] = useState<EstadoConsulta<EstacaoProxima[]>>({
-    dados: null,
-    carregando: false,
-    erro: null,
-  })
-
-  useEffect(() => {
-    if (!talhaoId) return
-    let cancelado = false
-    setEstado({ dados: null, carregando: true, erro: null })
-
-    apiGet<EstacoesProximasApi>(`/api/v1/talhoes/${talhaoId}/estacao-mais-proxima`)
-      .then((resposta) => {
-        if (cancelado) return
-        setEstado({
-          dados: resposta.estacoes.map((e) => ({
-            estacaoCodigo: e.estacao_codigo,
-            municipio: e.municipio,
-            distanciaKm: e.distancia_km,
-            posicao: [e.latitude, e.longitude] as [number, number],
-          })),
-          carregando: false,
-          erro: null,
-        })
-      })
-      .catch((erro: unknown) => {
-        if (cancelado) return
-        const mensagem = erro instanceof ApiError && erro.codigo === 404 ? null : 'Falha ao buscar estações.'
-        setEstado({ dados: [], carregando: false, erro: mensagem })
-      })
-
-    return () => {
-      cancelado = true
-    }
-  }, [talhaoId])
-
-  return estado
-}
-
 interface ClimaAtualApi {
-  estacao: string
   chuva_mm: number | null
   vento_kmh: number | null
   rajada_kmh: number | null
@@ -81,7 +23,7 @@ interface ClimaAtualApi {
   medido_em_utc: string
 }
 
-/** Clima atual do talhão (feature 008, já combinado por IDW — Escopo V3).
+/** Clima atual do talhão no centroide dele (feature 008): valor de modelo, não medição de estação.
  * `intervaloMs` reconsulta periodicamente (RN008: nunca serve dado >30min sem
  * tentar atualizar) — 0 desativa o polling. */
 export function useClimaAtual(talhaoId: string | null, intervaloMs = 0): EstadoConsulta<ClimaAtual> {
@@ -102,7 +44,6 @@ export function useClimaAtual(talhaoId: string | null, intervaloMs = 0): EstadoC
         if (cancelado) return
         setEstado({
           dados: {
-            estacao: resposta.estacao,
             chuvaMm: resposta.chuva_mm,
             ventoKmh: resposta.vento_kmh,
             rajadaKmh: resposta.rajada_kmh,
@@ -381,72 +322,6 @@ export function usePrevisao10Dias(
       cancelado = true
     }
   }, [coordenada?.lat, coordenada?.lon])
-
-  return estado
-}
-
-interface DadosMapaApi {
-  estacoes: {
-    codigo: string
-    municipio: string
-    posicao_geojson: { type: 'Point'; coordinates: [number, number] }
-    ultima_medicao: { chuva_mm: number | null; vento_kmh: number | null; fonte_dados: string } | null
-  }[]
-}
-
-/** Todas as estações do mapa (feature 007, FR-001) — visão geral, diferente
- * de `useEstacoesProximas` (as 3 mais próximas de um talhão específico). */
-export function useEstacoesDoMapa(ativo: boolean): EstadoConsulta<EstacaoMapa[]> {
-  const [estado, setEstado] = useState<EstadoConsulta<EstacaoMapa[]>>({
-    dados: null,
-    carregando: false,
-    erro: null,
-  })
-
-  useEffect(() => {
-    if (!ativo) return
-    let cancelado = false
-    setEstado({ dados: null, carregando: true, erro: null })
-
-    apiGet<DadosMapaApi>('/api/v1/mapa/dados')
-      .then((resposta) => {
-        if (cancelado) return
-        const estacoes: EstacaoMapa[] = resposta.estacoes.map((e) => ({
-          codigo: e.codigo,
-          municipio: e.municipio,
-          posicao: pontoGeoJSONParaLeaflet(e.posicao_geojson),
-          ultimaMedicao: e.ultima_medicao
-            ? {
-                chuvaMm: e.ultima_medicao.chuva_mm,
-                ventoKmh: e.ultima_medicao.vento_kmh,
-                fonteDados: e.ultima_medicao.fonte_dados,
-              }
-            : null,
-        }))
-        setEstado({ dados: estacoes, carregando: false, erro: null })
-        void salvarCacheDados('mapa-dados', estacoes)
-      })
-      .catch(async () => {
-        if (cancelado) return
-        const cache = await lerCacheDados<EstacaoMapa[]>('mapa-dados')
-        if (cache) {
-          // Offline: mantém as estações (identidade/posição são dado cadastral, não
-          // expira), mas nunca a última medição -- climas velho nunca aparece como
-          // atual (FR-005/contracts/pwa-comportamento.md).
-          setEstado({
-            dados: cache.dados.map((e) => ({ ...e, ultimaMedicao: null })),
-            carregando: false,
-            erro: null,
-          })
-        } else {
-          setEstado({ dados: null, carregando: false, erro: 'Falha ao buscar estações do mapa.' })
-        }
-      })
-
-    return () => {
-      cancelado = true
-    }
-  }, [ativo])
 
   return estado
 }

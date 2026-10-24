@@ -1,5 +1,4 @@
 const ROTULOS_FONTE: Record<string, string> = {
-  AO_VIVO: 'Estação INMET (medição ao vivo)',
   CACHE_EXPIRADO: 'Última leitura (desatualizada)',
   PREVISAO: 'Previsão de modelo meteorológico (não é medição de estação)',
 }
