@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { to: '/plantio', label: 'Janela de Plantio', icon: LeafIcon },
   { to: '/previsao', label: 'Previsão do Tempo', icon: CloudIcon },
   { to: '/talhoes/novo', label: 'Cadastrar Talhão', icon: PlusIcon, requerEscrita: true },
+  { to: '/usuarios', label: 'Usuários', icon: UsersIcon, somenteGestor: true },
 ]
 
 const PAPEL_LABEL: Record<Papel, string> = {
@@ -66,7 +67,10 @@ export function AppShell() {
   const navigate = useNavigate()
   const { papel, sair } = useAuth()
   const podeEscrever = papel !== 'AGRONOMO'
-  const itensVisiveis = NAV_ITEMS.filter((item) => podeEscrever || !item.requerEscrita)
+  const ehGestor = papel === 'GESTOR_TECNOLOGIA'
+  const itensVisiveis = NAV_ITEMS.filter(
+    (item) => (podeEscrever || !item.requerEscrita) && (ehGestor || !item.somenteGestor),
+  )
   const estadoConexao = useEstadoConexao()
 
   function handleSair() {
@@ -206,6 +210,16 @@ function PlusIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
       <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function UsersIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20" strokeLinecap="round" />
+      <circle cx="10" cy="8" r="3.2" />
+      <path d="M20 20v-1.4a3.5 3.5 0 0 0-2.6-3.4M15.5 4.9a3.2 3.2 0 0 1 0 6.2" strokeLinecap="round" />
     </svg>
   )
 }

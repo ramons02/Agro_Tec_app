@@ -3,6 +3,34 @@ export type TipoSolo = 'ARGILOSO' | 'ARENOSO' | 'MISTO'
 /** RD009 (provisório) — 3 papéis de usuário; ver HU-14. */
 export type Papel = 'PRODUTOR_RURAL' | 'AGRONOMO' | 'GESTOR_TECNOLOGIA'
 
+/** Uma conta em `GET /usuarios` (só gestor). `propriedades`: produtor = as que possui;
+ * agrônomo = as com vínculo aceito. */
+export interface UsuarioListado {
+  id: string
+  nome: string | null
+  email: string
+  papel: Papel
+  criadoEm: string
+  telegramVinculado: boolean
+  propriedades: number
+}
+
+/** Espelha `GET /usuarios/resumo` (só gestor). */
+export interface ResumoUsuarios {
+  total: number
+  porPapel: Record<Papel, number>
+  cadastrosSemana: number
+  cadastrosMes: number
+  ultimoCadastroEm: string | null
+}
+
+export interface PaginaUsuarios {
+  itens: UsuarioListado[]
+  total: number
+  pagina: number
+  tamanhoPagina: number
+}
+
 export type StatusPlantio = 'VERDE' | 'AMARELO' | 'VERMELHO'
 
 export type StatusPulverizacao =

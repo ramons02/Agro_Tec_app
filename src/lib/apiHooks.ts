@@ -3,9 +3,12 @@ import { apiGet, ApiError } from './apiClient'
 import type {
   BalancoHidricoResultado,
   ClimaAtual,
+  PaginaUsuarios,
+  Papel,
   PontoHistoricoUmidade,
   PrevisaoDia,
   PulverizacaoResultado,
+  ResumoUsuarios,
   RecomendacaoResultado,
 } from '../types'
 
@@ -322,6 +325,117 @@ export function usePrevisao10Dias(
       cancelado = true
     }
   }, [coordenada?.lat, coordenada?.lon])
+
+  return estado
+}
+
+interface ResumoUsuariosApi {
+  total: number
+  por_papel: Record<Papel, number>
+  cadastros_semana: number
+  cadastros_mes: number
+  ultimo_cadastro_em: string | null
+}
+
+/** Totais de contas por papel e cadastros recentes (só gestor). */
+export function useResumoUsuarios(): EstadoConsulta<ResumoUsuarios> {
+  const [estado, setEstado] = useState<EstadoConsulta<ResumoUsuarios>>({
+    dados: null,
+    carregando: true,
+    erro: null,
+  })
+
+  useEffect(() => {
+    let cancelado = false
+    apiGet<ResumoUsuariosApi>('/api/v1/usuarios/resumo')
+      .then((r) => {
+        if (cancelado) return
+        setEstado({
+          dados: {
+            total: r.total,
+            porPapel: r.por_papel,
+            cadastrosSemana: r.cadastros_semana,
+            cadastrosMes: r.cadastros_mes,
+            ultimoCadastroEm: r.ultimo_cadastro_em,
+          },
+          carregando: false,
+          erro: null,
+        })
+      })
+      .catch(() => {
+        if (!cancelado) setEstado({ dados: null, carregando: false, erro: 'Falha ao carregar o resumo.' })
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [])
+
+  return estado
+}
+
+interface UsuarioApi {
+  id: string
+  nome: string | null
+  email: string
+  papel: Papel
+  criado_em: string
+  telegram_vinculado: boolean
+  propriedades: number
+}
+
+interface PaginaUsuariosApi {
+  itens: UsuarioApi[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export const TAMANHO_PAGINA_USUARIOS = 20
+
+/** Contas criadas, mais recentes primeiro, com filtro por papel e busca por nome ou e-mail (só gestor). */
+export function useUsuarios(papel: Papel | null, busca: string, pagina: number): EstadoConsulta<PaginaUsuarios> {
+  const [estado, setEstado] = useState<EstadoConsulta<PaginaUsuarios>>({
+    dados: null,
+    carregando: true,
+    erro: null,
+  })
+
+  useEffect(() => {
+    let cancelado = false
+    const params = new URLSearchParams({ page: String(pagina), page_size: String(TAMANHO_PAGINA_USUARIOS) })
+    if (papel) params.set('papel', papel)
+    if (busca.trim()) params.set('q', busca.trim())
+    setEstado((atual) => ({ ...atual, carregando: true, erro: null }))
+
+    apiGet<PaginaUsuariosApi>(`/api/v1/usuarios?${params.toString()}`)
+      .then((r) => {
+        if (cancelado) return
+        setEstado({
+          dados: {
+            itens: r.itens.map((u) => ({
+              id: u.id,
+              nome: u.nome,
+              email: u.email,
+              papel: u.papel,
+              criadoEm: u.criado_em,
+              telegramVinculado: u.telegram_vinculado,
+              propriedades: u.propriedades,
+            })),
+            total: r.total,
+            pagina: r.page,
+            tamanhoPagina: r.page_size,
+          },
+          carregando: false,
+          erro: null,
+        })
+      })
+      .catch(() => {
+        if (!cancelado) setEstado({ dados: null, carregando: false, erro: 'Falha ao carregar os usuários.' })
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [papel, busca, pagina])
 
   return estado
 }
