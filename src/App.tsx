@@ -11,6 +11,7 @@ import { PulverizacaoPage } from './pages/PulverizacaoPage'
 import { DashboardPlantioPage } from './pages/DashboardPlantioPage'
 import { PrevisaoTempoPage } from './pages/PrevisaoTempoPage'
 import { UsuariosPage } from './pages/UsuariosPage'
+import { GruposPage } from './pages/GruposPage'
 import { TrocarSenhaPage } from './pages/TrocarSenhaPage'
 import { useAuth } from './store/AuthContext'
 
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/plantio" element={<DashboardPlantioPage />} />
         <Route path="/previsao" element={<PrevisaoTempoPage />} />
         <Route path="/usuarios" element={<UsuariosPage />} />
+        <Route path="/grupos" element={<GruposPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

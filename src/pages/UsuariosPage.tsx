@@ -4,6 +4,7 @@ import { ConfirmacaoDialog } from '../components/usuarios/ConfirmacaoDialog'
 import { SenhaTemporariaDialog } from '../components/usuarios/SenhaTemporariaDialog'
 import { DetalheUsuarioDialog } from '../components/usuarios/DetalheUsuarioDialog'
 import { EditarUsuarioDialog } from '../components/usuarios/EditarUsuarioDialog'
+import { MoverUsuarioDialog } from '../components/usuarios/MoverUsuarioDialog'
 import { NovoUsuarioDialog } from '../components/usuarios/NovoUsuarioDialog'
 import { SuspenderDialog } from '../components/usuarios/SuspenderDialog'
 import { Button } from '../components/ui/Button'
@@ -17,6 +18,7 @@ import {
   redefinirSenhaUsuario,
   suspenderUsuario,
 } from '../lib/acoesUsuarios'
+import { listarGrupos, moverUsuario, removerAgronomoDoGrupo, type ItemGrupo } from '../lib/acoesGrupos'
 import { ApiError, apiGet } from '../lib/apiClient'
 import { TAMANHO_PAGINA_USUARIOS, useResumoUsuarios, useUsuarios } from '../lib/apiHooks'
 import { ehGestor, ehMaster } from '../lib/papeis'
@@ -76,6 +78,8 @@ type Acao =
   | { tipo: 'redefinir'; usuario: UsuarioListado }
   | { tipo: 'editar'; usuario: UsuarioListado }
   | { tipo: 'novo' }
+  | { tipo: 'mover'; usuario: UsuarioListado }
+  | { tipo: 'removerGrupo'; usuario: UsuarioListado }
   | { tipo: 'detalhe'; usuario: UsuarioListado }
 
 function formatarData(iso: string | null): string {
@@ -108,6 +112,8 @@ function PainelUsuarios() {
   const souMaster = ehMaster(meuPapel)
   const filtros = souMaster ? [...FILTROS, FILTRO_MASTERS] : FILTROS
   const [filtro, setFiltro] = useState<Filtro>(FILTROS[0])
+  // Grupos: o Master escolhe entre todos (criar e mover); o Admin usa o dele (remover agrônomo do grupo).
+  const [grupos, setGrupos] = useState<ItemGrupo[]>([])
   // Id da própria conta: o gestor não suspende a si mesmo (a API também recusa com 409).
   const [meuId, setMeuId] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
@@ -121,6 +127,18 @@ function PainelUsuarios() {
   // Erro de formulário (e-mail repetido, por exemplo): fica dentro da janela, que continua aberta.
   const [erroDialogo, setErroDialogo] = useState<string | null>(null)
   const [senhaGerada, setSenhaGerada] = useState<{ titulo: string; senha: SenhaTemporaria } | null>(null)
+
+  useEffect(() => {
+    let cancelado = false
+    listarGrupos()
+      .then((g) => {
+        if (!cancelado) setGrupos(g)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelado = true
+    }
+  }, [versao])
 
   useEffect(() => {
     let cancelado = false
@@ -364,6 +382,27 @@ function PainelUsuarios() {
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(u.criadoEm)}</td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
+                    {souMaster && u.status !== 'PENDENTE' && (u.papel === 'PRODUTOR_RURAL' || u.papel === 'AGRONOMO') && (
+                      <Button
+                        variant="ghost"
+                        className="px-3 py-1.5"
+                        disabled={executando || grupos.length < 2}
+                        title={grupos.length < 2 ? 'É preciso ter outro grupo de destino.' : undefined}
+                        onClick={() => abrir({ tipo: 'mover', usuario: u })}
+                      >
+                        Mover
+                      </Button>
+                    )}
+                    {!souMaster && u.papel === 'AGRONOMO' && u.status !== 'PENDENTE' && grupos.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        className="px-3 py-1.5"
+                        disabled={executando}
+                        onClick={() => abrir({ tipo: 'removerGrupo', usuario: u })}
+                      >
+                        Remover do grupo
+                      </Button>
+                    )}
                     {u.status !== 'PENDENTE' && (
                       <>
                         <Button
@@ -499,14 +538,44 @@ function PainelUsuarios() {
         <NovoUsuarioDialog
           executando={executando}
           erro={erroDialogo}
+          grupos={souMaster ? grupos : undefined}
           onCancelar={() => setAcao(null)}
-          onCriar={(nome, email, papel) =>
+          onCriar={(nome, email, papel, grupoId) =>
             void executarNoDialogo(async () => {
-              const senha = await criarUsuario(nome, email, papel)
+              const senha = await criarUsuario(nome, email, papel, grupoId)
               setSenhaGerada({ titulo: 'Usuário criado', senha })
             })
           }
         />
+      )}
+
+      {acao?.tipo === 'mover' && (
+        <MoverUsuarioDialog
+          usuario={acao.usuario}
+          grupos={grupos}
+          executando={executando}
+          erro={erroDialogo}
+          onCancelar={() => setAcao(null)}
+          onMover={(grupoId, origemId) =>
+            void executarNoDialogo(() => moverUsuario(acao.usuario.id, grupoId, origemId))
+          }
+        />
+      )}
+
+      {acao?.tipo === 'removerGrupo' && grupos.length > 0 && (
+        <ConfirmacaoDialog
+          titulo="Remover do grupo"
+          rotuloConfirmar="Remover do grupo"
+          perigosa
+          executando={executando}
+          onCancelar={() => setAcao(null)}
+          onConfirmar={() => void executar(() => removerAgronomoDoGrupo(grupos[0].id, acao.usuario.id))}
+        >
+          <p>
+            <strong>{acao.usuario.nome ?? acao.usuario.email}</strong> sai do grupo {grupos[0].nome} e os vínculos dele com as
+            propriedades do grupo são encerrados. A conta continua nos outros grupos; se este for o único, a remoção é recusada.
+          </p>
+        </ConfirmacaoDialog>
       )}
 
       {acao?.tipo === 'editar' && (
