@@ -8,6 +8,8 @@ interface Props {
   /** Ação destrutiva (recusar, suspender): botão em vermelho. */
   perigosa?: boolean
   executando?: boolean
+  /** Bloqueia só o botão de confirmar (por exemplo, falta escolher algo); Cancelar continua valendo. */
+  confirmarDesabilitado?: boolean
   onConfirmar: () => void
   onCancelar: () => void
 }
@@ -19,6 +21,7 @@ export function ConfirmacaoDialog({
   rotuloConfirmar,
   perigosa = false,
   executando = false,
+  confirmarDesabilitado = false,
   onConfirmar,
   onCancelar,
 }: Props) {
@@ -33,7 +36,7 @@ export function ConfirmacaoDialog({
           </Button>
           <Button
             onClick={onConfirmar}
-            disabled={executando}
+            disabled={executando || confirmarDesabilitado}
             className={perigosa ? 'bg-red-600 hover:bg-red-700 focus-visible:outline-red-600' : ''}
           >
             {executando ? 'Aguarde…' : rotuloConfirmar}

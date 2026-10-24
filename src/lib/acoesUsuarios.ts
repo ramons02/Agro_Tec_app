@@ -56,8 +56,15 @@ export async function detalharUsuario(id: string): Promise<DetalheUsuario> {
 }
 
 /** Cria produtor ou agrônomo já ATIVO, com senha temporária (gestor só entra por convite). */
-export async function criarUsuario(nome: string, email: string, papel: Papel): Promise<SenhaTemporaria> {
-  return paraSenhaTemporaria(await apiPost<SenhaTemporariaApi>('/api/v1/usuarios', { nome, email, papel }))
+export async function criarUsuario(
+  nome: string,
+  email: string,
+  papel: Papel,
+  grupoId?: string,
+): Promise<SenhaTemporaria> {
+  return paraSenhaTemporaria(
+    await apiPost<SenhaTemporariaApi>('/api/v1/usuarios', { nome, email, papel, ...(grupoId ? { grupo_id: grupoId } : {}) }),
+  )
 }
 
 /** Nova senha temporária: a antiga e as sessões abertas da conta deixam de valer. */

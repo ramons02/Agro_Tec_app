@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { aoMudarFila, contarAcoesPendentes, iniciarSincronizacaoAutomatica } from '../lib/filaSincronizacao'
-import { ehGestor as papelEhGestor } from '../lib/papeis'
+import { ehGestor as papelEhGestor, ehMaster } from '../lib/papeis'
 import { useAuth } from '../store/AuthContext'
 import type { Papel } from '../types'
 
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { to: '/previsao', label: 'Previsão do Tempo', icon: CloudIcon },
   { to: '/talhoes/novo', label: 'Cadastrar Talhão', icon: PlusIcon, requerEscrita: true },
   { to: '/usuarios', label: 'Usuários', icon: UsersIcon, somenteGestor: true },
+  { to: '/grupos', label: 'Grupos', icon: BuildingIcon, somenteMaster: true },
 ]
 
 const PAPEL_LABEL: Record<Papel, string> = {
@@ -72,7 +73,10 @@ export function AppShell() {
   const podeEscrever = papel !== 'AGRONOMO'
   const ehGestor = papelEhGestor(papel)
   const itensVisiveis = NAV_ITEMS.filter(
-    (item) => (podeEscrever || !item.requerEscrita) && (ehGestor || !item.somenteGestor),
+    (item) =>
+      (podeEscrever || !item.requerEscrita) &&
+      (ehGestor || !item.somenteGestor) &&
+      (ehMaster(papel) || !item.somenteMaster),
   )
   const estadoConexao = useEstadoConexao()
 

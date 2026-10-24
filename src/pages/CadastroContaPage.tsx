@@ -8,7 +8,7 @@ import type { Papel } from '../types'
 const PAPEIS: Array<{ valor: Papel; label: string }> = [
   { valor: 'PRODUTOR_RURAL', label: 'Produtor rural' },
   { valor: 'AGRONOMO', label: 'Agrônomo' },
-  { valor: 'GESTOR_TECNOLOGIA', label: 'Gestor de tecnologia' },
+  { valor: 'ADMIN_MASTER', label: 'Administrador da plataforma' },
 ]
 
 export function CadastroContaPage() {
@@ -17,12 +17,12 @@ export function CadastroContaPage() {
   // Gestor só se cadastra por convite: sem o token no link, a opção nem aparece.
   // Só quem tem convite escolhe a senha; produtor e agrônomo recebem uma senha temporária do administrador.
   const convite = searchParams.get('convite')
-  const papeisDisponiveis = PAPEIS.filter((p) => p.valor !== 'GESTOR_TECNOLOGIA' || convite)
+  const papeisDisponiveis = PAPEIS.filter((p) => p.valor !== 'ADMIN_MASTER' || convite)
   const { registrar } = useAuth()
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [papel, setPapel] = useState<Papel>(convite ? 'GESTOR_TECNOLOGIA' : 'PRODUTOR_RURAL')
+  const [papel, setPapel] = useState<Papel>(convite ? 'ADMIN_MASTER' : 'PRODUTOR_RURAL')
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [concluido, setConcluido] = useState(false)

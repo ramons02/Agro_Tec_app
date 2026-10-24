@@ -1,11 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '../ui/Button'
+import type { ItemGrupo } from '../../lib/acoesGrupos'
 import type { Papel } from '../../types'
 
 interface Props {
   executando: boolean
   erro: string | null
-  onCriar: (nome: string, email: string, papel: Papel) => void
+  /** Só o Master escolhe o grupo; o Admin cria sempre no dele. */
+  grupos?: ItemGrupo[]
+  onCriar: (nome: string, email: string, papel: Papel, grupoId?: string) => void
   onCancelar: () => void
 }
 
@@ -16,14 +19,15 @@ const PAPEIS: Array<{ valor: Papel; label: string }> = [
 ]
 
 /** Cria uma conta já ativa, sem passar pela fila de aprovação; a senha temporária aparece em seguida. */
-export function NovoUsuarioDialog({ executando, erro, onCriar, onCancelar }: Props) {
+export function NovoUsuarioDialog({ executando, erro, grupos, onCriar, onCancelar }: Props) {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [papel, setPapel] = useState<Papel>('PRODUTOR_RURAL')
+  const [grupoId, setGrupoId] = useState('')
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    onCriar(nome.trim(), email.trim(), papel)
+    onCriar(nome.trim(), email.trim(), papel, grupoId || undefined)
   }
 
   return (
@@ -73,6 +77,24 @@ export function NovoUsuarioDialog({ executando, erro, onCriar, onCancelar }: Pro
             ))}
           </div>
         </div>
+
+        {grupos && grupos.length > 0 && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Grupo</label>
+            <select
+              value={grupoId}
+              onChange={(e) => setGrupoId(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            >
+              <option value="">O meu grupo</option>
+              {grupos.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
