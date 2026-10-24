@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { ApiError } from '../lib/apiClient'
+import { ehGestor } from '../lib/papeis'
 import { useAuth } from '../store/AuthContext'
 
 const SENHA_MINIMA = 8
@@ -19,7 +20,7 @@ export function TrocarSenhaPage() {
 
   if (!autenticado) return <Navigate to="/login" replace />
   // Fora do primeiro acesso, só o gestor troca a própria senha (a API também recusa os demais com 403).
-  if (!precisaTrocarSenha && papel !== 'GESTOR_TECNOLOGIA') return <Navigate to="/mapa" replace />
+  if (!precisaTrocarSenha && !ehGestor(papel)) return <Navigate to="/mapa" replace />
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()

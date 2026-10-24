@@ -19,19 +19,22 @@ import {
 } from '../lib/acoesUsuarios'
 import { ApiError, apiGet } from '../lib/apiClient'
 import { TAMANHO_PAGINA_USUARIOS, useResumoUsuarios, useUsuarios } from '../lib/apiHooks'
+import { ehGestor, ehMaster } from '../lib/papeis'
 import { useAuth } from '../store/AuthContext'
 import type { Papel, SenhaTemporaria, StatusConta, UsuarioListado } from '../types'
 
 const PAPEL_ROTULO: Record<Papel, string> = {
   PRODUTOR_RURAL: 'Produtor rural',
   AGRONOMO: 'Agrônomo',
-  GESTOR_TECNOLOGIA: 'Gestor',
+  GESTOR_TECNOLOGIA: 'Admin',
+  ADMIN_MASTER: 'Master',
 }
 
 const PAPEL_ESTILO: Record<Papel, string> = {
   PRODUTOR_RURAL: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
   AGRONOMO: 'bg-sky-50 text-sky-700 ring-sky-600/20',
   GESTOR_TECNOLOGIA: 'bg-violet-50 text-violet-700 ring-violet-600/20',
+  ADMIN_MASTER: 'bg-slate-800 text-white ring-slate-900/20',
 }
 
 const STATUS_ROTULO: Record<StatusConta, string> = {
@@ -60,8 +63,11 @@ const FILTROS: Filtro[] = [
   { rotulo: 'Esqueceram a senha', papel: null, status: null, esqueceuSenha: true },
   { rotulo: 'Produtores', papel: 'PRODUTOR_RURAL', status: null },
   { rotulo: 'Agrônomos', papel: 'AGRONOMO', status: null },
-  { rotulo: 'Gestores', papel: 'GESTOR_TECNOLOGIA', status: null },
+  { rotulo: 'Admins', papel: 'GESTOR_TECNOLOGIA', status: null },
 ]
+
+/** O Master também filtra pelos Masters; o Admin nunca os vê. */
+const FILTRO_MASTERS: Filtro = { rotulo: 'Masters', papel: 'ADMIN_MASTER', status: null }
 
 type Acao =
   | { tipo: 'recusar'; usuario: UsuarioListado }
@@ -93,11 +99,14 @@ function CartaoResumo({ titulo, valor, detalhe }: { titulo: string; valor: numbe
  * verificação fica fora do painel para que quem não é gestor nem chegue a chamar a API. */
 export function UsuariosPage() {
   const { papel } = useAuth()
-  if (papel !== 'GESTOR_TECNOLOGIA') return <Navigate to="/mapa" replace />
+  if (!ehGestor(papel)) return <Navigate to="/mapa" replace />
   return <PainelUsuarios />
 }
 
 function PainelUsuarios() {
+  const { papel: meuPapel } = useAuth()
+  const souMaster = ehMaster(meuPapel)
+  const filtros = souMaster ? [...FILTROS, FILTRO_MASTERS] : FILTROS
   const [filtro, setFiltro] = useState<Filtro>(FILTROS[0])
   // Id da própria conta: o gestor não suspende a si mesmo (a API também recusa com 409).
   const [meuId, setMeuId] = useState<string | null>(null)
@@ -242,7 +251,10 @@ function PainelUsuarios() {
           <CartaoResumo titulo="Total de contas" valor={resumo.total} />
           <CartaoResumo titulo="Produtores" valor={resumo.porPapel.PRODUTOR_RURAL ?? 0} />
           <CartaoResumo titulo="Agrônomos" valor={resumo.porPapel.AGRONOMO ?? 0} />
-          <CartaoResumo titulo="Gestores" valor={resumo.porPapel.GESTOR_TECNOLOGIA ?? 0} />
+          <CartaoResumo
+            titulo="Admins"
+            valor={(resumo.porPapel.GESTOR_TECNOLOGIA ?? 0) + (resumo.porPapel.ADMIN_MASTER ?? 0)}
+          />
           <CartaoResumo
             titulo="Novas na semana"
             valor={resumo.cadastrosSemana}
@@ -255,7 +267,7 @@ function PainelUsuarios() {
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-1.5">
-              {FILTROS.map((f) => (
+              {filtros.map((f) => (
                 <button
                   key={f.rotulo}
                   onClick={() => {
@@ -297,6 +309,7 @@ function PainelUsuarios() {
                 <th className="px-5 py-3 font-medium">Nome</th>
                 <th className="px-5 py-3 font-medium">E-mail</th>
                 <th className="px-5 py-3 font-medium">Papel</th>
+                {souMaster && <th className="px-5 py-3 font-medium">Grupo</th>}
                 <th className="px-5 py-3 font-medium">Estado</th>
                 <th className="px-5 py-3 text-right font-medium">Propriedades</th>
                 <th className="px-5 py-3 font-medium">Telegram</th>
@@ -324,6 +337,13 @@ function PainelUsuarios() {
                       {PAPEL_ROTULO[u.papel]}
                     </span>
                   </td>
+                  {souMaster && (
+                    <td className="px-5 py-3 text-slate-600">
+                      {u.papel === 'AGRONOMO'
+                        ? u.grupos.map((g) => g.nome).join(', ') || '—'
+                        : (u.grupo?.nome ?? '—')}
+                    </td>
+                  )}
                   <td className="px-5 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_ESTILO[u.status]}`}

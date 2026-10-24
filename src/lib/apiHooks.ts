@@ -389,6 +389,8 @@ interface UsuarioApi {
   telegram_vinculado: boolean
   propriedades: number
   senha_esquecida_em: string | null
+  grupo: { id: string; nome: string } | null
+  grupos: Array<{ id: string; nome: string }>
 }
 
 interface PaginaUsuariosApi {
@@ -439,6 +441,8 @@ export function useUsuarios(
               telegramVinculado: u.telegram_vinculado,
               propriedades: u.propriedades,
               senhaEsquecidaEm: u.senha_esquecida_em,
+              grupo: u.grupo,
+              grupos: u.grupos ?? [],
             })),
             total: r.total,
             pagina: r.page,
