@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { ApiError } from '../lib/apiClient'
 import { useAuth } from '../store/AuthContext'
@@ -13,11 +13,15 @@ const PAPEIS: Array<{ valor: Papel; label: string }> = [
 
 export function CadastroContaPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Gestor só se cadastra por convite: sem o token no link, a opção nem aparece.
+  const convite = searchParams.get('convite')
+  const papeisDisponiveis = PAPEIS.filter((p) => p.valor !== 'GESTOR_TECNOLOGIA' || convite)
   const { registrar } = useAuth()
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [papel, setPapel] = useState<Papel>('PRODUTOR_RURAL')
+  const [papel, setPapel] = useState<Papel>(convite ? 'GESTOR_TECNOLOGIA' : 'PRODUTOR_RURAL')
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [concluido, setConcluido] = useState(false)
@@ -33,7 +37,7 @@ export function CadastroContaPage() {
 
     setEnviando(true)
     try {
-      await registrar(nome, email, senha, papel)
+      await registrar(nome, email, senha, papel, convite ?? undefined)
       setConcluido(true)
     } catch (excecao) {
       setErro(
@@ -106,7 +110,7 @@ export function CadastroContaPage() {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Papel</label>
             <div className="space-y-1.5">
-              {PAPEIS.map((p) => (
+              {papeisDisponiveis.map((p) => (
                 <label
                   key={p.valor}
                   className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
