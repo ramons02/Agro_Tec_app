@@ -3,6 +3,7 @@ import { BadgeStatusPulverizacao } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import { usePulverizacao } from '../lib/apiHooks'
+import { rotuloFonteDados } from '../lib/fonteDados'
 import { useAppData } from '../store/AppDataContext'
 import type { Talhao } from '../types'
 
@@ -88,7 +89,7 @@ function CardPulverizacaoTalhao({ talhao }: { talhao: Talhao }) {
         )}
 
         <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-          <p className="text-xs text-slate-400">{dados ? `Fonte: ${dados.fonteDados}` : ''}</p>
+          <p className="text-xs text-slate-400">{dados ? `Fonte: ${rotuloFonteDados(dados.fonteDados)}` : ''}</p>
           <Button
             variant="secondary"
             className="px-3 py-1.5 text-xs"
