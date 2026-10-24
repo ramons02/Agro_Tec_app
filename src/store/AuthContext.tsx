@@ -21,7 +21,14 @@ interface AuthContextValue {
   /** Devolve se a conta precisa trocar a senha antes de usar o sistema. */
   entrar: (email: string, senha: string) => Promise<{ precisaTrocarSenha: boolean }>
   trocarSenha: (senhaAtual: string, senhaNova: string) => Promise<void>
-  registrar: (nome: string, email: string, senha: string | undefined, papel: Papel, convite?: string) => Promise<void>
+  registrar: (
+    nome: string,
+    email: string,
+    senha: string | undefined,
+    papel: Papel,
+    convite?: string,
+    grupo?: string,
+  ) => Promise<void>
   sair: () => void
 }
 
@@ -84,8 +91,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(dados.token)
         setPrecisaTrocarSenha(false)
       },
-      registrar: async (nome: string, email: string, senha: string | undefined, papel: Papel, convite?: string) => {
-        await apiPost('/api/v1/auth/registro', { nome, email, senha, papel, convite })
+      registrar: async (
+        nome: string,
+        email: string,
+        senha: string | undefined,
+        papel: Papel,
+        convite?: string,
+        grupo?: string,
+      ) => {
+        await apiPost('/api/v1/auth/registro', { nome, email, senha, papel, convite, grupo })
       },
       sair: () => {
         definirToken(null)

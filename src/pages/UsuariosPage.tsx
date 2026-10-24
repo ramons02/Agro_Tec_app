@@ -5,6 +5,7 @@ import { SenhaTemporariaDialog } from '../components/usuarios/SenhaTemporariaDia
 import { DetalheUsuarioDialog } from '../components/usuarios/DetalheUsuarioDialog'
 import { EditarUsuarioDialog } from '../components/usuarios/EditarUsuarioDialog'
 import { MoverUsuarioDialog } from '../components/usuarios/MoverUsuarioDialog'
+import { NovoLinkDialog } from '../components/usuarios/NovoLinkDialog'
 import { NovoUsuarioDialog } from '../components/usuarios/NovoUsuarioDialog'
 import { SuspenderDialog } from '../components/usuarios/SuspenderDialog'
 import { Button } from '../components/ui/Button'
@@ -78,6 +79,8 @@ type Acao =
   | { tipo: 'redefinir'; usuario: UsuarioListado }
   | { tipo: 'editar'; usuario: UsuarioListado }
   | { tipo: 'novo' }
+  | { tipo: 'link' }
+  | { tipo: 'confirmarComGrupo'; usuario: UsuarioListado }
   | { tipo: 'mover'; usuario: UsuarioListado }
   | { tipo: 'removerGrupo'; usuario: UsuarioListado }
   | { tipo: 'detalhe'; usuario: UsuarioListado }
@@ -206,9 +209,14 @@ function PainelUsuarios() {
     setAcao(proxima)
   }
 
-  function confirmar(usuario: UsuarioListado) {
+  /** Cadastro sem grupo (chegou pelo site, sem link): so o Master ve e precisa escolher o grupo ao confirmar. */
+  function semGrupo(usuario: UsuarioListado): boolean {
+    return usuario.papel === 'AGRONOMO' ? usuario.grupos.length === 0 : usuario.grupo === null
+  }
+
+  function confirmar(usuario: UsuarioListado, grupoId?: string) {
     void executar(async () => {
-      const senha = await confirmarUsuario(usuario.id)
+      const senha = await confirmarUsuario(usuario.id, grupoId)
       setSenhaGerada({ titulo: 'Conta confirmada', senha })
     })
   }
@@ -226,7 +234,14 @@ function PainelUsuarios() {
             Contas criadas na plataforma: quem se cadastrou, quando, e quanto já usa o sistema.
           </p>
         </div>
-        <Button onClick={() => abrir({ tipo: 'novo' })}>Novo usuário</Button>
+        <div className="flex gap-2">
+          {!souMaster && grupos.length > 0 && (
+            <Button variant="secondary" onClick={() => abrir({ tipo: 'link' })}>
+              Link de cadastro do grupo
+            </Button>
+          )}
+          <Button onClick={() => abrir({ tipo: 'novo' })}>Novo usuário</Button>
+        </div>
       </div>
 
       {resumo && resumo.pendentes > 0 && (
@@ -446,7 +461,7 @@ function PainelUsuarios() {
                     )}
                     {u.status === 'PENDENTE' && (
                       <>
-                        <Button className="px-3 py-1.5" disabled={executando} onClick={() => confirmar(u)}>
+                        <Button className="px-3 py-1.5" disabled={executando} onClick={() => (souMaster && semGrupo(u) ? abrir({ tipo: 'confirmarComGrupo', usuario: u }) : confirmar(u))}>
                           Confirmar
                         </Button>
                         <Button
@@ -549,6 +564,20 @@ function PainelUsuarios() {
         />
       )}
 
+      {acao?.tipo === 'link' && grupos.length > 0 && (
+        <NovoLinkDialog grupoId={grupos[0].id} grupoNome={grupos[0].nome} onFechar={() => setAcao(null)} />
+      )}
+
+      {acao?.tipo === 'confirmarComGrupo' && (
+        <ConfirmarComGrupo
+          usuario={acao.usuario}
+          grupos={grupos}
+          executando={executando}
+          onCancelar={() => setAcao(null)}
+          onConfirmar={(grupoId) => confirmar(acao.usuario, grupoId)}
+        />
+      )}
+
       {acao?.tipo === 'mover' && (
         <MoverUsuarioDialog
           usuario={acao.usuario}
@@ -618,5 +647,50 @@ function PainelUsuarios() {
         />
       )}
     </div>
+  )
+}
+
+/** O Master confirma um cadastro que chegou sem grupo escolhendo o grupo dele (sem grupo padrão). */
+function ConfirmarComGrupo({
+  usuario,
+  grupos,
+  executando,
+  onCancelar,
+  onConfirmar,
+}: {
+  usuario: UsuarioListado
+  grupos: ItemGrupo[]
+  executando: boolean
+  onCancelar: () => void
+  onConfirmar: (grupoId: string) => void
+}) {
+  const [grupoId, setGrupoId] = useState('')
+
+  return (
+    <ConfirmacaoDialog
+      titulo="Confirmar cadastro"
+      rotuloConfirmar="Confirmar e gerar senha"
+      executando={executando}
+      confirmarDesabilitado={!grupoId}
+      onCancelar={onCancelar}
+      onConfirmar={() => onConfirmar(grupoId)}
+    >
+      <p>
+        <strong>{usuario.nome ?? usuario.email}</strong> se cadastrou sem passar pelo link de um grupo. Escolha a qual
+        grupo a conta pertence; o Admin desse grupo passa a enxergá-la.
+      </p>
+      <select
+        value={grupoId}
+        onChange={(e) => setGrupoId(e.target.value)}
+        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+      >
+        <option value="">Escolha o grupo</option>
+        {grupos.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.nome}
+          </option>
+        ))}
+      </select>
+    </ConfirmacaoDialog>
   )
 }

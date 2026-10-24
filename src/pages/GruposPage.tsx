@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { ConfirmacaoDialog } from '../components/usuarios/ConfirmacaoDialog'
+import { NovoLinkDialog } from '../components/usuarios/NovoLinkDialog'
 import { SenhaTemporariaDialog } from '../components/usuarios/SenhaTemporariaDialog'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -32,6 +33,7 @@ function PainelGrupos() {
   const [novo, setNovo] = useState(false)
   const [reatribuindo, setReatribuindo] = useState<ItemGrupo | null>(null)
   const [convidando, setConvidando] = useState(false)
+  const [gerandoLink, setGerandoLink] = useState<ItemGrupo | null>(null)
   const [executando, setExecutando] = useState(false)
   const [erroDialogo, setErroDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -108,6 +110,9 @@ function PainelGrupos() {
                   <td className="px-5 py-3 text-right text-slate-700">{g.usuarios}</td>
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(g.criadoEm)}</td>
                   <td className="px-5 py-3 text-right">
+                    <Button variant="ghost" className="px-3 py-1.5" onClick={() => setGerandoLink(g)}>
+                      Link de cadastro
+                    </Button>
                     <Button
                       variant="ghost"
                       className="px-3 py-1.5"
@@ -170,6 +175,10 @@ function PainelGrupos() {
             })
           }
         />
+      )}
+
+      {gerandoLink && (
+        <NovoLinkDialog grupoId={gerandoLink.id} grupoNome={gerandoLink.nome} onFechar={() => setGerandoLink(null)} />
       )}
 
       {senhaGerada && (
