@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { aoMudarFila, contarAcoesPendentes, iniciarSincronizacaoAutomatica } from '../lib/filaSincronizacao'
+import { ehGestor as papelEhGestor } from '../lib/papeis'
 import { useAuth } from '../store/AuthContext'
 import type { Papel } from '../types'
 
@@ -18,12 +19,14 @@ const PAPEL_LABEL: Record<Papel, string> = {
   PRODUTOR_RURAL: 'Produtor rural',
   AGRONOMO: 'Agrônomo (leitura)',
   GESTOR_TECNOLOGIA: 'Gestor de tecnologia',
+  ADMIN_MASTER: 'Administrador da plataforma',
 }
 
 const PAPEL_INICIAIS: Record<Papel, string> = {
   PRODUTOR_RURAL: 'PR',
   AGRONOMO: 'AG',
   GESTOR_TECNOLOGIA: 'GT',
+  ADMIN_MASTER: 'AM',
 }
 
 /** Offline/sincronizando/online (RI014, HU-16 US3) -- navigator.onLine + eventos
@@ -67,7 +70,7 @@ export function AppShell() {
   const navigate = useNavigate()
   const { papel, sair } = useAuth()
   const podeEscrever = papel !== 'AGRONOMO'
-  const ehGestor = papel === 'GESTOR_TECNOLOGIA'
+  const ehGestor = papelEhGestor(papel)
   const itensVisiveis = NAV_ITEMS.filter(
     (item) => (podeEscrever || !item.requerEscrita) && (ehGestor || !item.somenteGestor),
   )

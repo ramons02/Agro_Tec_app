@@ -1,7 +1,8 @@
 export type TipoSolo = 'ARGILOSO' | 'ARENOSO' | 'MISTO'
 
 /** RD009 (provisório) — 3 papéis de usuário; ver HU-14. */
-export type Papel = 'PRODUTOR_RURAL' | 'AGRONOMO' | 'GESTOR_TECNOLOGIA'
+/** `GESTOR_TECNOLOGIA` é o Admin de um grupo; `ADMIN_MASTER` é o dono da plataforma (spec 024). */
+export type Papel = 'PRODUTOR_RURAL' | 'AGRONOMO' | 'GESTOR_TECNOLOGIA' | 'ADMIN_MASTER'
 
 /** Estado da conta (spec 022): PENDENTE -> ATIVA <-> SUSPENSA. */
 export type StatusConta = 'PENDENTE' | 'ATIVA' | 'SUSPENSA'
@@ -28,6 +29,15 @@ export interface UsuarioListado {
   propriedades: number
   /** Quando a pessoa pediu nova senha na tela de login; null = sem pedido pendente. */
   senhaEsquecidaEm: string | null
+  /** Grupo do produtor e do Admin; null para o agrônomo (que usa `grupos`) e para o pendente sem grupo. */
+  grupo: GrupoResumo | null
+  /** Grupos do agrônomo (pode ter vários). */
+  grupos: GrupoResumo[]
+}
+
+export interface GrupoResumo {
+  id: string
+  nome: string
 }
 
 /** Espelha `GET /usuarios/resumo` (só gestor). */
