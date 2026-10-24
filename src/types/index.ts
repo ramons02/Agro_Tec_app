@@ -159,16 +159,25 @@ export interface PulverizacaoResultado {
 
 export type Prioridade = 'ALTA' | 'MEDIA' | 'BAIXA'
 
-/** Espelha um dia de `GET /previsao` (busca de cidade) — previsão futura da
- * Open-Meteo, diferente do Balanço Hídrico (que só usa dado medido). */
+/** Espelha um dia de `GET /previsao` (busca de cidade) — previsão futura,
+ * diferente do Balanço Hídrico (que só usa dado medido). Campo que a fonte não
+ * entregou vem `null` (nunca 0): a tela mostra "—". */
 export interface PrevisaoDia {
   data: string
-  temperaturaMinC: number
-  temperaturaMaxC: number
-  precipitacaoPrevistaMm: number
-  probabilidadeChuvaPct: number
-  ventoMaxKmh: number
-  rajadaMaxKmh: number
+  temperaturaMinC: number | null
+  temperaturaMaxC: number | null
+  precipitacaoPrevistaMm: number | null
+  probabilidadeChuvaPct: number | null
+  ventoMaxKmh: number | null
+  rajadaMaxKmh: number | null
+}
+
+/** Fonte usada na previsão: a principal (Open-Meteo) ou a reserva (MET Norway). */
+export type FontePrevisao = 'OPEN_METEO' | 'MET_NORWAY'
+
+export interface PrevisaoResultado {
+  fonte: FontePrevisao
+  dias: PrevisaoDia[]
 }
 
 /** Espelha `GET /talhoes/{id}/recomendacao` (feature 012) — combina status de
