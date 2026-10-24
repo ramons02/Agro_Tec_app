@@ -51,11 +51,13 @@ interface Filtro {
   rotulo: string
   papel: Papel | null
   status: StatusConta | null
+  esqueceuSenha?: boolean
 }
 
 const FILTROS: Filtro[] = [
   { rotulo: 'Todos', papel: null, status: null },
   { rotulo: 'Pendentes', papel: null, status: 'PENDENTE' },
+  { rotulo: 'Esqueceram a senha', papel: null, status: null, esqueceuSenha: true },
   { rotulo: 'Produtores', papel: 'PRODUTOR_RURAL', status: null },
   { rotulo: 'Agrônomos', papel: 'AGRONOMO', status: null },
   { rotulo: 'Gestores', papel: 'GESTOR_TECNOLOGIA', status: null },
@@ -133,7 +135,14 @@ function PainelUsuarios() {
   }, [busca])
 
   const { dados: resumo, erro: erroResumo } = useResumoUsuarios(versao)
-  const { dados: lista, carregando, erro } = useUsuarios(filtro.papel, filtro.status, buscaAplicada, pagina, versao)
+  const { dados: lista, carregando, erro } = useUsuarios(
+    filtro.papel,
+    filtro.status,
+    filtro.esqueceuSenha === true,
+    buscaAplicada,
+    pagina,
+    versao,
+  )
 
   async function executar(operacao: () => Promise<void>) {
     setExecutando(true)
@@ -209,6 +218,23 @@ function PainelUsuarios() {
         </button>
       )}
 
+      {resumo && resumo.senhasEsquecidas > 0 && (
+        <button
+          onClick={() => {
+            setFiltro(FILTROS[2])
+            setPagina(1)
+          }}
+          className="flex w-full items-center justify-between rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-left text-sm text-sky-800 hover:bg-sky-100"
+        >
+          <span>
+            <strong>{resumo.senhasEsquecidas}</strong>{' '}
+            {resumo.senhasEsquecidas === 1 ? 'pessoa esqueceu' : 'pessoas esqueceram'} a senha e{' '}
+            {resumo.senhasEsquecidas === 1 ? 'aguarda' : 'aguardam'} uma senha temporária
+          </span>
+          <span className="font-medium">Ver pedidos</span>
+        </button>
+      )}
+
       {erroAcao && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroAcao}</p>}
       {erroResumo && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroResumo}</p>}
       {resumo && (
@@ -245,6 +271,11 @@ function PainelUsuarios() {
                   {f.rotulo}
                   {f.status === 'PENDENTE' && resumo && resumo.pendentes > 0 && (
                     <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-xs text-white">{resumo.pendentes}</span>
+                  )}
+                  {f.esqueceuSenha && resumo && resumo.senhasEsquecidas > 0 && (
+                    <span className="ml-1.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-xs text-white">
+                      {resumo.senhasEsquecidas}
+                    </span>
                   )}
                 </button>
               ))}
@@ -299,6 +330,14 @@ function PainelUsuarios() {
                     >
                       {STATUS_ROTULO[u.status]}
                     </span>
+                    {u.senhaEsquecidaEm && (
+                      <span
+                        className="mt-1 flex w-fit rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-600/20"
+                        title={`Pediu nova senha em ${formatarData(u.senhaEsquecidaEm)}`}
+                      >
+                        Esqueceu a senha
+                      </span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-right text-slate-700">{u.propriedades}</td>
                   <td className="px-5 py-3 text-slate-600">{u.telegramVinculado ? 'Vinculado' : '—'}</td>
@@ -316,7 +355,7 @@ function PainelUsuarios() {
                           Editar
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant={u.senhaEsquecidaEm ? 'primary' : 'ghost'}
                           className="px-3 py-1.5"
                           disabled={executando}
                           onClick={() => abrir({ tipo: 'redefinir', usuario: u })}

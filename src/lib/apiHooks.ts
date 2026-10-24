@@ -337,6 +337,7 @@ interface ResumoUsuariosApi {
   cadastros_mes: number
   ultimo_cadastro_em: string | null
   pendentes: number
+  senhas_esquecidas: number
 }
 
 /** Totais de contas por papel e cadastros recentes (só gestor). */
@@ -361,6 +362,7 @@ export function useResumoUsuarios(versao = 0): EstadoConsulta<ResumoUsuarios> {
             cadastrosMes: r.cadastros_mes,
             ultimoCadastroEm: r.ultimo_cadastro_em,
             pendentes: r.pendentes,
+            senhasEsquecidas: r.senhas_esquecidas,
           },
           carregando: false,
           erro: null,
@@ -386,6 +388,7 @@ interface UsuarioApi {
   criado_em: string
   telegram_vinculado: boolean
   propriedades: number
+  senha_esquecida_em: string | null
 }
 
 interface PaginaUsuariosApi {
@@ -401,6 +404,7 @@ export const TAMANHO_PAGINA_USUARIOS = 20
 export function useUsuarios(
   papel: Papel | null,
   status: StatusConta | null,
+  esqueceuSenha: boolean,
   busca: string,
   pagina: number,
   versao = 0,
@@ -416,6 +420,7 @@ export function useUsuarios(
     const params = new URLSearchParams({ page: String(pagina), page_size: String(TAMANHO_PAGINA_USUARIOS) })
     if (papel) params.set('papel', papel)
     if (status) params.set('status', status)
+    if (esqueceuSenha) params.set('esqueceu_senha', 'true')
     if (busca.trim()) params.set('q', busca.trim())
     setEstado((atual) => ({ ...atual, carregando: true, erro: null }))
 
@@ -433,6 +438,7 @@ export function useUsuarios(
               criadoEm: u.criado_em,
               telegramVinculado: u.telegram_vinculado,
               propriedades: u.propriedades,
+              senhaEsquecidaEm: u.senha_esquecida_em,
             })),
             total: r.total,
             pagina: r.page,
@@ -448,7 +454,7 @@ export function useUsuarios(
     return () => {
       cancelado = true
     }
-  }, [papel, status, busca, pagina, versao])
+  }, [papel, status, esqueceuSenha, busca, pagina, versao])
 
   return estado
 }
