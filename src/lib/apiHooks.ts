@@ -6,7 +6,7 @@ import type {
   PaginaUsuarios,
   Papel,
   PontoHistoricoUmidade,
-  PrevisaoDia,
+  PrevisaoResultado,
   PulverizacaoResultado,
   ResumoUsuarios,
   StatusConta,
@@ -269,14 +269,15 @@ export function useBalancoHidricoHistorico(talhaoId: string | null): EstadoConsu
 }
 
 interface PrevisaoApi {
+  fonte: PrevisaoResultado['fonte']
   dias: {
     data: string
-    temperatura_min_c: number
-    temperatura_max_c: number
-    precipitacao_prevista_mm: number
-    probabilidade_chuva_pct: number
-    vento_max_kmh: number
-    rajada_max_kmh: number
+    temperatura_min_c: number | null
+    temperatura_max_c: number | null
+    precipitacao_prevista_mm: number | null
+    probabilidade_chuva_pct: number | null
+    vento_max_kmh: number | null
+    rajada_max_kmh: number | null
   }[]
 }
 
@@ -284,8 +285,8 @@ interface PrevisaoApi {
  * relação com talhão/propriedade. `coordenada` nulo desativa a busca. */
 export function usePrevisao10Dias(
   coordenada: { lat: number; lon: number } | null,
-): EstadoConsulta<PrevisaoDia[]> {
-  const [estado, setEstado] = useState<EstadoConsulta<PrevisaoDia[]>>({
+): EstadoConsulta<PrevisaoResultado> {
+  const [estado, setEstado] = useState<EstadoConsulta<PrevisaoResultado>>({
     dados: null,
     carregando: false,
     erro: null,
@@ -300,15 +301,19 @@ export function usePrevisao10Dias(
       .then((resposta) => {
         if (cancelado) return
         setEstado({
-          dados: resposta.dias.map((dia) => ({
-            data: dia.data,
-            temperaturaMinC: dia.temperatura_min_c,
-            temperaturaMaxC: dia.temperatura_max_c,
-            precipitacaoPrevistaMm: dia.precipitacao_prevista_mm,
-            probabilidadeChuvaPct: dia.probabilidade_chuva_pct,
-            ventoMaxKmh: dia.vento_max_kmh,
-            rajadaMaxKmh: dia.rajada_max_kmh,
-          })),
+          dados: {
+            fonte: resposta.fonte,
+            dias: resposta.dias.map((dia) => ({
+              data: dia.data,
+              // `?? null`: a API manda null, mas campo que sumiu também não pode virar número.
+              temperaturaMinC: dia.temperatura_min_c ?? null,
+              temperaturaMaxC: dia.temperatura_max_c ?? null,
+              precipitacaoPrevistaMm: dia.precipitacao_prevista_mm ?? null,
+              probabilidadeChuvaPct: dia.probabilidade_chuva_pct ?? null,
+              ventoMaxKmh: dia.vento_max_kmh ?? null,
+              rajadaMaxKmh: dia.rajada_max_kmh ?? null,
+            })),
+          },
           carregando: false,
           erro: null,
         })

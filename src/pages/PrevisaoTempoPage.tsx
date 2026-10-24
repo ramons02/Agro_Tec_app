@@ -28,6 +28,11 @@ function FocoCidade({ posicao }: { posicao: [number, number] }) {
   return null
 }
 
+/** Valor ausente aparece como "—", nunca como 0 (FR-009): zero de chuva ou de vento seria dado inventado. */
+function numero(valor: number | null, casas = 0) {
+  return valor == null ? '—' : valor.toFixed(casas)
+}
+
 function formatarDia(data: string) {
   const [ano, mes, dia] = data.split('-').map(Number)
   const formatado = new Date(ano, mes - 1, dia).toLocaleDateString('pt-BR', {
@@ -48,9 +53,11 @@ export function PrevisaoTempoPage() {
     return MUNICIPIOS_PARA.filter((m) => m.nome.toLowerCase().includes(termoBusca)).slice(0, 8)
   }, [termoBusca, cidade])
 
-  const { dados: previsao, carregando, erro } = usePrevisao10Dias(
+  const { dados: resultado, carregando, erro } = usePrevisao10Dias(
     cidade ? { lat: cidade.lat, lon: cidade.lng } : null,
   )
+
+  const previsao = resultado?.dias
 
   function selecionarCidade(municipio: MunicipioPara) {
     setCidade(municipio)
@@ -67,7 +74,7 @@ export function PrevisaoTempoPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Previsão do Tempo</h1>
         <p className="text-sm text-slate-500">
-          Busque uma cidade do Pará e veja a previsão dos próximos 10 dias (Open-Meteo).
+          Busque uma cidade do Pará e veja a previsão dos próximos 10 dias.
         </p>
       </div>
 
@@ -138,6 +145,13 @@ export function PrevisaoTempoPage() {
       {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
       {carregando && <p className="text-sm text-slate-400">Buscando previsão…</p>}
 
+      {resultado?.fonte === 'MET_NORWAY' && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Previsão de fonte de reserva (MET Norway): a fonte principal está fora do ar. A rajada e a
+          probabilidade de chuva não vêm nesta fonte e podem faltar dias no fim da lista.
+        </p>
+      )}
+
       {previsao && previsao.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {previsao.map((dia) => (
@@ -147,14 +161,18 @@ export function PrevisaoTempoPage() {
                   {formatarDia(dia.data)}
                 </p>
                 <p className="text-lg font-semibold text-slate-900">
-                  {dia.temperaturaMaxC.toFixed(0)}°{' '}
+                  {numero(dia.temperaturaMaxC)}°{' '}
                   <span className="text-sm font-normal text-slate-400">
-                    {dia.temperaturaMinC.toFixed(0)}°
+                    {numero(dia.temperaturaMinC)}°
                   </span>
                 </p>
                 <div className="space-y-0.5 text-xs text-slate-500">
-                  <p>Chuva: {dia.probabilidadeChuvaPct.toFixed(0)}% ({dia.precipitacaoPrevistaMm.toFixed(1)}mm)</p>
-                  <p>Vento: {dia.ventoMaxKmh.toFixed(0)} km/h (rajada {dia.rajadaMaxKmh.toFixed(0)})</p>
+                  <p>
+                    Chuva: {numero(dia.probabilidadeChuvaPct)}% ({numero(dia.precipitacaoPrevistaMm, 1)}mm)
+                  </p>
+                  <p>
+                    Vento: {numero(dia.ventoMaxKmh)} km/h (rajada {numero(dia.rajadaMaxKmh)})
+                  </p>
                 </div>
               </CardBody>
             </Card>
