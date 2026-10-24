@@ -78,8 +78,10 @@ export async function editarUsuario(id: string, alteracoes: { nome?: string; ema
 }
 
 /** PENDENTE -> ATIVA, com senha temporária. */
-export async function confirmarUsuario(id: string): Promise<SenhaTemporaria> {
-  return paraSenhaTemporaria(await apiPost<SenhaTemporariaApi>(`/api/v1/usuarios/${id}/confirmar`))
+export async function confirmarUsuario(id: string, grupoId?: string): Promise<SenhaTemporaria> {
+  return paraSenhaTemporaria(
+    await apiPost<SenhaTemporariaApi>(`/api/v1/usuarios/${id}/confirmar`, grupoId ? { grupo_id: grupoId } : undefined),
+  )
 }
 
 /** ATIVA -> SUSPENSA; o motivo é opcional e só o administrador o vê. */

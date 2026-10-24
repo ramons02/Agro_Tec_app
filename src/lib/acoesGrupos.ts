@@ -59,6 +59,12 @@ export async function removerAgronomoDoGrupo(grupoId: string, agronomoId: string
   await apiDelete(`/api/v1/grupos/${grupoId}/agronomos/${agronomoId}`)
 }
 
+/** Novo link de cadastro do grupo (Master ou Admin do grupo): o anterior para de valer na hora e o novo só aparece aqui. */
+export async function gerarNovoLink(grupoId: string): Promise<{ link: string; geradoEm: string }> {
+  const r = await apiPost<{ link: string; gerado_em: string }>(`/api/v1/grupos/${grupoId}/novo-link`)
+  return { link: r.link, geradoEm: r.gerado_em }
+}
+
 /** Convite de uso único para um novo Master; devolve o link para o Master copiar. */
 export async function convidarMaster(email: string): Promise<{ link: string; expiraEm: string }> {
   const r = await apiPost<{ link: string; expira_em: string }>('/api/v1/auth/convites-master', { email })

@@ -17,6 +17,8 @@ export function CadastroContaPage() {
   // Gestor só se cadastra por convite: sem o token no link, a opção nem aparece.
   // Só quem tem convite escolhe a senha; produtor e agrônomo recebem uma senha temporária do administrador.
   const convite = searchParams.get('convite')
+  // Link de cadastro do grupo de um Admin: a conta nasce pendente nesse grupo e o Admin dele decide.
+  const grupo = searchParams.get('grupo')
   const papeisDisponiveis = PAPEIS.filter((p) => p.valor !== 'ADMIN_MASTER' || convite)
   const { registrar } = useAuth()
   const [nome, setNome] = useState('')
@@ -38,7 +40,7 @@ export function CadastroContaPage() {
 
     setEnviando(true)
     try {
-      await registrar(nome, email, convite ? senha : undefined, papel, convite ?? undefined)
+      await registrar(nome, email, convite ? senha : undefined, papel, convite ?? undefined, grupo ?? undefined)
       setConcluido(true)
     } catch (excecao) {
       setErro(
@@ -62,8 +64,8 @@ export function CadastroContaPage() {
             <>
               <p className="text-sm font-semibold text-slate-900">Cadastro recebido, aguarde a confirmação.</p>
               <p className="text-sm text-slate-500">
-                O administrador vai avaliar o seu cadastro e passar a você uma senha de acesso. Depois disso é só
-                entrar com o e-mail cadastrado.
+                {grupo ? 'O administrador do seu grupo' : 'O administrador'} vai avaliar o seu cadastro e passar a você
+                uma senha de acesso. Depois disso é só entrar com o e-mail cadastrado.
               </p>
             </>
           )}
