@@ -9,6 +9,7 @@ import type {
   PrevisaoDia,
   PulverizacaoResultado,
   ResumoUsuarios,
+  StatusConta,
   RecomendacaoResultado,
 } from '../types'
 
@@ -335,10 +336,12 @@ interface ResumoUsuariosApi {
   cadastros_semana: number
   cadastros_mes: number
   ultimo_cadastro_em: string | null
+  pendentes: number
 }
 
 /** Totais de contas por papel e cadastros recentes (só gestor). */
-export function useResumoUsuarios(): EstadoConsulta<ResumoUsuarios> {
+/** `versao` muda depois de uma ação de gestão, para o resumo ser consultado de novo. */
+export function useResumoUsuarios(versao = 0): EstadoConsulta<ResumoUsuarios> {
   const [estado, setEstado] = useState<EstadoConsulta<ResumoUsuarios>>({
     dados: null,
     carregando: true,
@@ -357,6 +360,7 @@ export function useResumoUsuarios(): EstadoConsulta<ResumoUsuarios> {
             cadastrosSemana: r.cadastros_semana,
             cadastrosMes: r.cadastros_mes,
             ultimoCadastroEm: r.ultimo_cadastro_em,
+            pendentes: r.pendentes,
           },
           carregando: false,
           erro: null,
@@ -368,7 +372,7 @@ export function useResumoUsuarios(): EstadoConsulta<ResumoUsuarios> {
     return () => {
       cancelado = true
     }
-  }, [])
+  }, [versao])
 
   return estado
 }
@@ -378,6 +382,7 @@ interface UsuarioApi {
   nome: string | null
   email: string
   papel: Papel
+  status: StatusConta
   criado_em: string
   telegram_vinculado: boolean
   propriedades: number
@@ -393,7 +398,13 @@ interface PaginaUsuariosApi {
 export const TAMANHO_PAGINA_USUARIOS = 20
 
 /** Contas criadas, mais recentes primeiro, com filtro por papel e busca por nome ou e-mail (só gestor). */
-export function useUsuarios(papel: Papel | null, busca: string, pagina: number): EstadoConsulta<PaginaUsuarios> {
+export function useUsuarios(
+  papel: Papel | null,
+  status: StatusConta | null,
+  busca: string,
+  pagina: number,
+  versao = 0,
+): EstadoConsulta<PaginaUsuarios> {
   const [estado, setEstado] = useState<EstadoConsulta<PaginaUsuarios>>({
     dados: null,
     carregando: true,
@@ -404,6 +415,7 @@ export function useUsuarios(papel: Papel | null, busca: string, pagina: number):
     let cancelado = false
     const params = new URLSearchParams({ page: String(pagina), page_size: String(TAMANHO_PAGINA_USUARIOS) })
     if (papel) params.set('papel', papel)
+    if (status) params.set('status', status)
     if (busca.trim()) params.set('q', busca.trim())
     setEstado((atual) => ({ ...atual, carregando: true, erro: null }))
 
@@ -417,6 +429,7 @@ export function useUsuarios(papel: Papel | null, busca: string, pagina: number):
               nome: u.nome,
               email: u.email,
               papel: u.papel,
+              status: u.status,
               criadoEm: u.criado_em,
               telegramVinculado: u.telegram_vinculado,
               propriedades: u.propriedades,
@@ -435,7 +448,7 @@ export function useUsuarios(papel: Papel | null, busca: string, pagina: number):
     return () => {
       cancelado = true
     }
-  }, [papel, busca, pagina])
+  }, [papel, status, busca, pagina, versao])
 
   return estado
 }

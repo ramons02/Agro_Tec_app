@@ -15,6 +15,7 @@ export function CadastroContaPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   // Gestor só se cadastra por convite: sem o token no link, a opção nem aparece.
+  // Só quem tem convite escolhe a senha; produtor e agrônomo recebem uma senha temporária do administrador.
   const convite = searchParams.get('convite')
   const papeisDisponiveis = PAPEIS.filter((p) => p.valor !== 'GESTOR_TECNOLOGIA' || convite)
   const { registrar } = useAuth()
@@ -30,14 +31,14 @@ export function CadastroContaPage() {
     event.preventDefault()
     setErro(null)
 
-    if (senha.length < 8) {
+    if (convite && senha.length < 8) {
       setErro('A senha precisa ter no mínimo 8 caracteres.')
       return
     }
 
     setEnviando(true)
     try {
-      await registrar(nome, email, senha, papel, convite ?? undefined)
+      await registrar(nome, email, convite ? senha : undefined, papel, convite ?? undefined)
       setConcluido(true)
     } catch (excecao) {
       setErro(
@@ -52,8 +53,20 @@ export function CadastroContaPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
         <div className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-          <p className="text-sm font-semibold text-slate-900">Conta criada com sucesso.</p>
-          <p className="text-sm text-slate-500">Já pode entrar com o e-mail e a senha cadastrados.</p>
+          {convite ? (
+            <>
+              <p className="text-sm font-semibold text-slate-900">Conta criada com sucesso.</p>
+              <p className="text-sm text-slate-500">Já pode entrar com o e-mail e a senha cadastrados.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-slate-900">Cadastro recebido, aguarde a confirmação.</p>
+              <p className="text-sm text-slate-500">
+                O administrador vai avaliar o seu cadastro e passar a você uma senha de acesso. Depois disso é só
+                entrar com o e-mail cadastrado.
+              </p>
+            </>
+          )}
           <Button className="w-full" onClick={() => navigate('/login')}>
             Ir para o login
           </Button>
@@ -95,17 +108,19 @@ export function CadastroContaPage() {
             />
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Senha</label>
-            <input
-              type="password"
-              required
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="Mínimo 8 caracteres"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-            />
-          </div>
+          {convite && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Senha</label>
+              <input
+                type="password"
+                required
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+          )}
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Papel</label>
@@ -134,7 +149,7 @@ export function CadastroContaPage() {
           {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
           <Button type="submit" className="w-full" disabled={enviando}>
-            {enviando ? 'Criando…' : 'Criar conta'}
+            {enviando ? 'Enviando…' : convite ? 'Criar conta' : 'Enviar cadastro'}
           </Button>
 
           <p className="text-center text-xs text-slate-500">

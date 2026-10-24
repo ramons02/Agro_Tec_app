@@ -2,6 +2,10 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 const CHAVE_TOKEN = 'agroclima:token'
 
+/** Disparado quando a API informa que a conta foi suspensa: o AuthProvider encerra a sessão e a tela de login avisa. */
+export const EVENTO_CONTA_SUSPENSA = 'agroclima:conta-suspensa'
+export const CHAVE_AVISO_LOGIN = 'agroclima:aviso-login'
+
 export class ApiError extends Error {
   codigo: number
   detalhes: unknown
@@ -44,6 +48,10 @@ async function tratarResposta<T>(resposta: Response): Promise<T> {
   if (!resposta.ok || corpo?.status === 'erro') {
     if (resposta.status === 401) definirToken(null)
     const erro = corpo as EnvelopeErro | null
+    if (resposta.status === 403 && erro?.mensagem?.startsWith('Conta suspensa')) {
+      definirToken(null)
+      window.dispatchEvent(new CustomEvent(EVENTO_CONTA_SUSPENSA, { detail: erro.mensagem }))
+    }
     throw new ApiError(
       erro?.codigo ?? resposta.status,
       erro?.mensagem ?? 'Erro inesperado ao falar com a API.',
@@ -79,6 +87,15 @@ export async function apiPost<T>(caminho: string, corpo?: unknown): Promise<T> {
 export async function apiPut<T>(caminho: string, corpo: unknown): Promise<T> {
   const resposta = await fetch(`${BASE_URL}${caminho}`, {
     method: 'PUT',
+    headers: cabecalhos(true),
+    body: JSON.stringify(corpo),
+  })
+  return tratarResposta<T>(resposta)
+}
+
+export async function apiPatch<T>(caminho: string, corpo: unknown): Promise<T> {
+  const resposta = await fetch(`${BASE_URL}${caminho}`, {
+    method: 'PATCH',
     headers: cabecalhos(true),
     body: JSON.stringify(corpo),
   })

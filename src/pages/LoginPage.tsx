@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
-import { ApiError } from '../lib/apiClient'
+import { ApiError, CHAVE_AVISO_LOGIN } from '../lib/apiClient'
 import { useAuth } from '../store/AuthContext'
 
 export function LoginPage() {
@@ -9,7 +9,16 @@ export function LoginPage() {
   const { entrar } = useAuth()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
+  // Aviso deixado por uma sessão encerrada (conta suspensa); lido uma vez e descartado.
+  const [erro, setErro] = useState<string | null>(() => {
+    try {
+      const aviso = sessionStorage.getItem(CHAVE_AVISO_LOGIN)
+      sessionStorage.removeItem(CHAVE_AVISO_LOGIN)
+      return aviso
+    } catch {
+      return null
+    }
+  })
   const [enviando, setEnviando] = useState(false)
 
   async function handleSubmit(event: FormEvent) {
@@ -17,8 +26,8 @@ export function LoginPage() {
     setErro(null)
     setEnviando(true)
     try {
-      await entrar(email, senha)
-      navigate('/mapa')
+      const { precisaTrocarSenha } = await entrar(email, senha)
+      navigate(precisaTrocarSenha ? '/trocar-senha' : '/mapa')
     } catch (excecao) {
       setErro(
         excecao instanceof ApiError

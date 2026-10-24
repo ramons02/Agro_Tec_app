@@ -1,9 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { ConfirmacaoDialog } from '../components/usuarios/ConfirmacaoDialog'
+import { SenhaTemporariaDialog } from '../components/usuarios/SenhaTemporariaDialog'
+import { DetalheUsuarioDialog } from '../components/usuarios/DetalheUsuarioDialog'
+import { EditarUsuarioDialog } from '../components/usuarios/EditarUsuarioDialog'
+import { NovoUsuarioDialog } from '../components/usuarios/NovoUsuarioDialog'
+import { SuspenderDialog } from '../components/usuarios/SuspenderDialog'
+import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
+import {
+  confirmarUsuario,
+  criarUsuario,
+  editarUsuario,
+  reativarUsuario,
+  recusarUsuario,
+  redefinirSenhaUsuario,
+  suspenderUsuario,
+} from '../lib/acoesUsuarios'
+import { ApiError, apiGet } from '../lib/apiClient'
 import { TAMANHO_PAGINA_USUARIOS, useResumoUsuarios, useUsuarios } from '../lib/apiHooks'
 import { useAuth } from '../store/AuthContext'
-import type { Papel } from '../types'
+import type { Papel, SenhaTemporaria, StatusConta, UsuarioListado } from '../types'
 
 const PAPEL_ROTULO: Record<Papel, string> = {
   PRODUTOR_RURAL: 'Produtor rural',
@@ -17,12 +34,41 @@ const PAPEL_ESTILO: Record<Papel, string> = {
   GESTOR_TECNOLOGIA: 'bg-violet-50 text-violet-700 ring-violet-600/20',
 }
 
-const FILTROS: Array<{ valor: Papel | null; rotulo: string }> = [
-  { valor: null, rotulo: 'Todos' },
-  { valor: 'PRODUTOR_RURAL', rotulo: 'Produtores' },
-  { valor: 'AGRONOMO', rotulo: 'Agrônomos' },
-  { valor: 'GESTOR_TECNOLOGIA', rotulo: 'Gestores' },
+const STATUS_ROTULO: Record<StatusConta, string> = {
+  PENDENTE: 'Pendente',
+  ATIVA: 'Ativa',
+  SUSPENSA: 'Suspensa',
+}
+
+const STATUS_ESTILO: Record<StatusConta, string> = {
+  PENDENTE: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+  ATIVA: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+  SUSPENSA: 'bg-red-50 text-red-700 ring-red-600/20',
+}
+
+/** Um filtro é por papel ou por estado ("Pendentes"); nunca os dois ao mesmo tempo. */
+interface Filtro {
+  rotulo: string
+  papel: Papel | null
+  status: StatusConta | null
+}
+
+const FILTROS: Filtro[] = [
+  { rotulo: 'Todos', papel: null, status: null },
+  { rotulo: 'Pendentes', papel: null, status: 'PENDENTE' },
+  { rotulo: 'Produtores', papel: 'PRODUTOR_RURAL', status: null },
+  { rotulo: 'Agrônomos', papel: 'AGRONOMO', status: null },
+  { rotulo: 'Gestores', papel: 'GESTOR_TECNOLOGIA', status: null },
 ]
+
+type Acao =
+  | { tipo: 'recusar'; usuario: UsuarioListado }
+  | { tipo: 'suspender'; usuario: UsuarioListado }
+  | { tipo: 'reativar'; usuario: UsuarioListado }
+  | { tipo: 'redefinir'; usuario: UsuarioListado }
+  | { tipo: 'editar'; usuario: UsuarioListado }
+  | { tipo: 'novo' }
+  | { tipo: 'detalhe'; usuario: UsuarioListado }
 
 function formatarData(iso: string | null): string {
   if (!iso) return '—'
@@ -50,10 +96,32 @@ export function UsuariosPage() {
 }
 
 function PainelUsuarios() {
-  const [filtroPapel, setFiltroPapel] = useState<Papel | null>(null)
+  const [filtro, setFiltro] = useState<Filtro>(FILTROS[0])
+  // Id da própria conta: o gestor não suspende a si mesmo (a API também recusa com 409).
+  const [meuId, setMeuId] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
   const [buscaAplicada, setBuscaAplicada] = useState('')
   const [pagina, setPagina] = useState(1)
+  // Muda depois de cada ação de gestão, para a lista e o resumo serem consultados de novo.
+  const [versao, setVersao] = useState(0)
+  const [acao, setAcao] = useState<Acao | null>(null)
+  const [executando, setExecutando] = useState(false)
+  const [erroAcao, setErroAcao] = useState<string | null>(null)
+  // Erro de formulário (e-mail repetido, por exemplo): fica dentro da janela, que continua aberta.
+  const [erroDialogo, setErroDialogo] = useState<string | null>(null)
+  const [senhaGerada, setSenhaGerada] = useState<{ titulo: string; senha: SenhaTemporaria } | null>(null)
+
+  useEffect(() => {
+    let cancelado = false
+    apiGet<{ id: string }>('/api/v1/auth/me')
+      .then((eu) => {
+        if (!cancelado) setMeuId(eu.id)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelado = true
+    }
+  }, [])
 
   // Espera o gestor parar de digitar antes de consultar a API.
   useEffect(() => {
@@ -64,8 +132,50 @@ function PainelUsuarios() {
     return () => clearTimeout(espera)
   }, [busca])
 
-  const { dados: resumo, erro: erroResumo } = useResumoUsuarios()
-  const { dados: lista, carregando, erro } = useUsuarios(filtroPapel, buscaAplicada, pagina)
+  const { dados: resumo, erro: erroResumo } = useResumoUsuarios(versao)
+  const { dados: lista, carregando, erro } = useUsuarios(filtro.papel, filtro.status, buscaAplicada, pagina, versao)
+
+  async function executar(operacao: () => Promise<void>) {
+    setExecutando(true)
+    setErroAcao(null)
+    try {
+      await operacao()
+      setVersao((v) => v + 1)
+    } catch (excecao) {
+      setErroAcao(excecao instanceof ApiError ? excecao.message : 'Não consegui concluir a ação. Tente novamente.')
+      setVersao((v) => v + 1)
+    } finally {
+      setExecutando(false)
+      setAcao(null)
+    }
+  }
+
+  /** Para janelas com formulário: em caso de erro a janela continua aberta, mostrando a mensagem nela. */
+  async function executarNoDialogo(operacao: () => Promise<void>) {
+    setExecutando(true)
+    setErroDialogo(null)
+    try {
+      await operacao()
+      setVersao((v) => v + 1)
+      setAcao(null)
+    } catch (excecao) {
+      setErroDialogo(excecao instanceof ApiError ? excecao.message : 'Não consegui concluir a ação. Tente novamente.')
+    } finally {
+      setExecutando(false)
+    }
+  }
+
+  function abrir(proxima: Acao) {
+    setErroDialogo(null)
+    setAcao(proxima)
+  }
+
+  function confirmar(usuario: UsuarioListado) {
+    void executar(async () => {
+      const senha = await confirmarUsuario(usuario.id)
+      setSenhaGerada({ titulo: 'Conta confirmada', senha })
+    })
+  }
 
   const total = lista?.total ?? 0
   const primeiro = total === 0 ? 0 : (pagina - 1) * TAMANHO_PAGINA_USUARIOS + 1
@@ -73,13 +183,33 @@ function PainelUsuarios() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Usuários</h1>
-        <p className="text-sm text-slate-500">
-          Contas criadas na plataforma: quem se cadastrou, quando, e quanto já usa o sistema.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Usuários</h1>
+          <p className="text-sm text-slate-500">
+            Contas criadas na plataforma: quem se cadastrou, quando, e quanto já usa o sistema.
+          </p>
+        </div>
+        <Button onClick={() => abrir({ tipo: 'novo' })}>Novo usuário</Button>
       </div>
 
+      {resumo && resumo.pendentes > 0 && (
+        <button
+          onClick={() => {
+            setFiltro(FILTROS[1])
+            setPagina(1)
+          }}
+          className="flex w-full items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-800 hover:bg-amber-100"
+        >
+          <span>
+            <strong>{resumo.pendentes}</strong> {resumo.pendentes === 1 ? 'cadastro aguarda' : 'cadastros aguardam'} a sua
+            confirmação
+          </span>
+          <span className="font-medium">Ver pendentes</span>
+        </button>
+      )}
+
+      {erroAcao && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroAcao}</p>}
       {erroResumo && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroResumo}</p>}
       {resumo && (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -103,16 +233,19 @@ function PainelUsuarios() {
                 <button
                   key={f.rotulo}
                   onClick={() => {
-                    setFiltroPapel(f.valor)
+                    setFiltro(f)
                     setPagina(1)
                   }}
                   className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                    filtroPapel === f.valor
+                    filtro.rotulo === f.rotulo
                       ? 'bg-emerald-600 text-white'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   {f.rotulo}
+                  {f.status === 'PENDENTE' && resumo && resumo.pendentes > 0 && (
+                    <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-xs text-white">{resumo.pendentes}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -133,15 +266,25 @@ function PainelUsuarios() {
                 <th className="px-5 py-3 font-medium">Nome</th>
                 <th className="px-5 py-3 font-medium">E-mail</th>
                 <th className="px-5 py-3 font-medium">Papel</th>
+                <th className="px-5 py-3 font-medium">Estado</th>
                 <th className="px-5 py-3 text-right font-medium">Propriedades</th>
                 <th className="px-5 py-3 font-medium">Telegram</th>
                 <th className="px-5 py-3 font-medium">Cadastro</th>
+                <th className="px-5 py-3 text-right font-medium">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {lista?.itens.map((u) => (
                 <tr key={u.id} className="hover:bg-slate-50">
-                  <td className="px-5 py-3 font-medium text-slate-800">{u.nome ?? '—'}</td>
+                  <td className="px-5 py-3 font-medium text-slate-800">
+                    <button
+                      onClick={() => abrir({ tipo: 'detalhe', usuario: u })}
+                      className="text-left hover:text-emerald-700 hover:underline"
+                      title="Ver o histórico desta conta"
+                    >
+                      {u.nome ?? '—'}
+                    </button>
+                  </td>
                   <td className="px-5 py-3 text-slate-600">{u.email}</td>
                   <td className="px-5 py-3">
                     <span
@@ -150,9 +293,76 @@ function PainelUsuarios() {
                       {PAPEL_ROTULO[u.papel]}
                     </span>
                   </td>
+                  <td className="px-5 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_ESTILO[u.status]}`}
+                    >
+                      {STATUS_ROTULO[u.status]}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-right text-slate-700">{u.propriedades}</td>
                   <td className="px-5 py-3 text-slate-600">{u.telegramVinculado ? 'Vinculado' : '—'}</td>
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(u.criadoEm)}</td>
+                  <td className="px-5 py-3 text-right">
+                    <div className="flex flex-wrap justify-end gap-2">
+                    {u.status !== 'PENDENTE' && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          className="px-3 py-1.5"
+                          disabled={executando}
+                          onClick={() => abrir({ tipo: 'editar', usuario: u })}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="px-3 py-1.5"
+                          disabled={executando}
+                          onClick={() => abrir({ tipo: 'redefinir', usuario: u })}
+                        >
+                          Redefinir senha
+                        </Button>
+                      </>
+                    )}
+                    {u.status === 'ATIVA' && (
+                      <Button
+                        variant="secondary"
+                        className="px-3 py-1.5"
+                        disabled={executando || u.id === meuId}
+                        title={u.id === meuId ? 'Você não pode suspender a própria conta.' : undefined}
+                        onClick={() => setAcao({ tipo: 'suspender', usuario: u })}
+                      >
+                        Suspender
+                      </Button>
+                    )}
+                    {u.status === 'SUSPENSA' && (
+                      <Button
+                        variant="secondary"
+                        className="px-3 py-1.5"
+                        disabled={executando}
+                        onClick={() => setAcao({ tipo: 'reativar', usuario: u })}
+                      >
+                        Reativar
+                      </Button>
+                    )}
+                    {u.status === 'PENDENTE' && (
+                      <>
+                        <Button className="px-3 py-1.5" disabled={executando} onClick={() => confirmar(u)}>
+                          Confirmar
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="px-3 py-1.5"
+                          disabled={executando}
+                          onClick={() => setAcao({ tipo: 'recusar', usuario: u })}
+                        >
+                          Recusar
+                        </Button>
+                      </>
+                    )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -185,6 +395,100 @@ function PainelUsuarios() {
           </div>
         </div>
       </Card>
+
+      {acao?.tipo === 'recusar' && (
+        <ConfirmacaoDialog
+          titulo="Recusar cadastro"
+          rotuloConfirmar="Recusar cadastro"
+          perigosa
+          executando={executando}
+          onCancelar={() => setAcao(null)}
+          onConfirmar={() => void executar(() => recusarUsuario(acao.usuario.id))}
+        >
+          <p>
+            O cadastro de <strong>{acao.usuario.nome ?? acao.usuario.email}</strong> ({acao.usuario.email}) será apagado.
+            A pessoa poderá se cadastrar de novo com o mesmo e-mail.
+          </p>
+        </ConfirmacaoDialog>
+      )}
+
+      {acao?.tipo === 'suspender' && (
+        <SuspenderDialog
+          usuario={acao.usuario}
+          executando={executando}
+          onCancelar={() => setAcao(null)}
+          onConfirmar={(motivo) => void executar(() => suspenderUsuario(acao.usuario.id, motivo))}
+        />
+      )}
+
+      {acao?.tipo === 'reativar' && (
+        <ConfirmacaoDialog
+          titulo="Reativar conta"
+          rotuloConfirmar="Reativar conta"
+          executando={executando}
+          onCancelar={() => setAcao(null)}
+          onConfirmar={() => void executar(() => reativarUsuario(acao.usuario.id))}
+        >
+          <p>
+            <strong>{acao.usuario.nome ?? acao.usuario.email}</strong> volta a entrar no sistema com a mesma senha de
+            antes, e tudo continua como estava.
+          </p>
+        </ConfirmacaoDialog>
+      )}
+
+      {acao?.tipo === 'novo' && (
+        <NovoUsuarioDialog
+          executando={executando}
+          erro={erroDialogo}
+          onCancelar={() => setAcao(null)}
+          onCriar={(nome, email, papel) =>
+            void executarNoDialogo(async () => {
+              const senha = await criarUsuario(nome, email, papel)
+              setSenhaGerada({ titulo: 'Usuário criado', senha })
+            })
+          }
+        />
+      )}
+
+      {acao?.tipo === 'editar' && (
+        <EditarUsuarioDialog
+          usuario={acao.usuario}
+          executando={executando}
+          erro={erroDialogo}
+          onCancelar={() => setAcao(null)}
+          onSalvar={(alteracoes) => void executarNoDialogo(() => editarUsuario(acao.usuario.id, alteracoes))}
+        />
+      )}
+
+      {acao?.tipo === 'redefinir' && (
+        <ConfirmacaoDialog
+          titulo="Redefinir senha"
+          rotuloConfirmar="Gerar nova senha"
+          executando={executando}
+          onCancelar={() => setAcao(null)}
+          onConfirmar={() =>
+            void executar(async () => {
+              const senha = await redefinirSenhaUsuario(acao.usuario.id)
+              setSenhaGerada({ titulo: 'Senha redefinida', senha })
+            })
+          }
+        >
+          <p>
+            Será gerada uma nova senha temporária para <strong>{acao.usuario.nome ?? acao.usuario.email}</strong>. A senha
+            antiga e a sessão aberta dessa conta deixam de valer, e a pessoa define uma senha própria no próximo acesso.
+          </p>
+        </ConfirmacaoDialog>
+      )}
+
+      {acao?.tipo === 'detalhe' && <DetalheUsuarioDialog usuarioId={acao.usuario.id} onFechar={() => setAcao(null)} />}
+
+      {senhaGerada && (
+        <SenhaTemporariaDialog
+          titulo={senhaGerada.titulo}
+          senha={senhaGerada.senha}
+          onFechar={() => setSenhaGerada(null)}
+        />
+      )}
     </div>
   )
 }
