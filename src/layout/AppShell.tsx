@@ -110,7 +110,14 @@ export function AppShell() {
           ))}
         </nav>
 
-        <div className="border-t border-slate-100 p-3">
+        <div className="space-y-1 border-t border-slate-100 p-3">
+          <button
+            onClick={() => navigate('/trocar-senha')}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+          >
+            <KeyIcon className="h-4 w-4" />
+            Trocar minha senha
+          </button>
           <button
             onClick={handleSair}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
@@ -220,6 +227,15 @@ function UsersIcon({ className }: IconProps) {
       <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20" strokeLinecap="round" />
       <circle cx="10" cy="8" r="3.2" />
       <path d="M20 20v-1.4a3.5 3.5 0 0 0-2.6-3.4M15.5 4.9a3.2 3.2 0 0 1 0 6.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function KeyIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="m11 12 9-9m-3 3 3 3m-6-0 2 2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

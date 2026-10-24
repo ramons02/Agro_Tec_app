@@ -3,6 +3,18 @@ export type TipoSolo = 'ARGILOSO' | 'ARENOSO' | 'MISTO'
 /** RD009 (provisório) — 3 papéis de usuário; ver HU-14. */
 export type Papel = 'PRODUTOR_RURAL' | 'AGRONOMO' | 'GESTOR_TECNOLOGIA'
 
+/** Estado da conta (spec 022): PENDENTE -> ATIVA <-> SUSPENSA. */
+export type StatusConta = 'PENDENTE' | 'ATIVA' | 'SUSPENSA'
+
+/** Senha temporária devolvida uma única vez por confirmar, criar e redefinir (nunca é guardada). */
+export interface SenhaTemporaria {
+  id: string
+  nome: string | null
+  email: string
+  senhaTemporaria: string
+  expiraEm: string
+}
+
 /** Uma conta em `GET /usuarios` (só gestor). `propriedades`: produtor = as que possui;
  * agrônomo = as com vínculo aceito. */
 export interface UsuarioListado {
@@ -10,6 +22,7 @@ export interface UsuarioListado {
   nome: string | null
   email: string
   papel: Papel
+  status: StatusConta
   criadoEm: string
   telegramVinculado: boolean
   propriedades: number
@@ -22,6 +35,37 @@ export interface ResumoUsuarios {
   cadastrosSemana: number
   cadastrosMes: number
   ultimoCadastroEm: string | null
+  pendentes: number
+}
+
+/** Ações de gestão registradas na auditoria (espelha `AcaoAuditoria` da API). */
+export type AcaoAuditoria =
+  | 'CONFIRMAR'
+  | 'RECUSAR'
+  | 'CRIAR'
+  | 'SUSPENDER'
+  | 'REATIVAR'
+  | 'REDEFINIR_SENHA'
+  | 'EDITAR'
+
+export interface EventoHistorico {
+  acao: AcaoAuditoria
+  atorNome: string
+  detalhe: string | null
+  criadoEm: string
+}
+
+/** `GET /usuarios/{id}`: a conta (nunca com senha) e o histórico de ações, do mais recente ao mais antigo. */
+export interface DetalheUsuario {
+  id: string
+  nome: string | null
+  email: string
+  papel: Papel
+  status: StatusConta
+  precisaTrocarSenha: boolean
+  motivoSuspensao: string | null
+  criadoEm: string
+  historico: EventoHistorico[]
 }
 
 export interface PaginaUsuarios {

@@ -11,11 +11,15 @@ import { PulverizacaoPage } from './pages/PulverizacaoPage'
 import { DashboardPlantioPage } from './pages/DashboardPlantioPage'
 import { PrevisaoTempoPage } from './pages/PrevisaoTempoPage'
 import { UsuariosPage } from './pages/UsuariosPage'
+import { TrocarSenhaPage } from './pages/TrocarSenhaPage'
 import { useAuth } from './store/AuthContext'
 
 function RotaProtegida({ children }: { children: React.ReactNode }) {
-  const { autenticado } = useAuth()
-  return autenticado ? <>{children}</> : <Navigate to="/login" replace />
+  const { autenticado, precisaTrocarSenha } = useAuth()
+  if (!autenticado) return <Navigate to="/login" replace />
+  // Com senha temporária, nada além da troca de senha está liberado (a API também recusa com 403).
+  if (precisaTrocarSenha) return <Navigate to="/trocar-senha" replace />
+  return <>{children}</>
 }
 
 export default function App() {
@@ -25,6 +29,7 @@ export default function App() {
       <Route path="/cadastro" element={<CadastroContaPage />} />
       <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
       <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
+      <Route path="/trocar-senha" element={<TrocarSenhaPage />} />
 
       <Route
         element={
