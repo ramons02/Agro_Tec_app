@@ -6,7 +6,7 @@ import {
   usePulverizacao,
   useRecomendacao,
 } from '../lib/apiHooks'
-import type { EstacaoProxima, Talhao } from '../types'
+import type { Talhao } from '../types'
 import { BadgeStatusPlantio, BadgeStatusPulverizacao } from './ui/Badge'
 import { Card, CardBody, CardHeader } from './ui/Card'
 import { GraficoUmidade } from './GraficoUmidade'
@@ -14,10 +14,9 @@ import { PainelRecomendacao } from './PainelRecomendacao'
 
 interface PainelTalhaoProps {
   talhao: Talhao
-  estacaoMaisProxima: EstacaoProxima | null
 }
 
-export function PainelTalhao({ talhao, estacaoMaisProxima }: PainelTalhaoProps) {
+export function PainelTalhao({ talhao }: PainelTalhaoProps) {
   const { dados: clima } = useClimaAtual(talhao.id)
   const { dados: pulverizacao } = usePulverizacao(talhao.id)
   const { dados: recomendacao } = useRecomendacao(talhao.id)
@@ -111,22 +110,6 @@ export function PainelTalhao({ talhao, estacaoMaisProxima }: PainelTalhaoProps) 
             <p className="text-sm text-slate-400">
               Ainda não há dias suficientes de balanço hídrico calculado.
             </p>
-          )}
-        </section>
-
-        <section>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Estação mais próxima
-          </h3>
-          {estacaoMaisProxima ? (
-            <div className="rounded-lg bg-slate-50 p-3 text-sm">
-              <p className="font-medium text-slate-800">
-                {estacaoMaisProxima.estacaoCodigo} — {estacaoMaisProxima.municipio}
-              </p>
-              <p className="text-slate-500">{estacaoMaisProxima.distanciaKm.toFixed(1)} km do centroide</p>
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400">Nenhuma estação vinculada.</p>
           )}
         </section>
 

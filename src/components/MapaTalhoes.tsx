@@ -1,24 +1,10 @@
 import { useEffect } from 'react'
-import { MapContainer, Marker, Polygon, Popup, TileLayer, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import { rotuloFonteDados } from '../lib/fonteDados'
-import type { EstacaoMapa, Talhao } from '../types'
+import { MapContainer, Polygon, Popup, TileLayer, useMap } from 'react-leaflet'
+import type { Talhao } from '../types'
 import { STATUS_PLANTIO_COR_MAPA, STATUS_PLANTIO_LABEL } from './ui/Badge'
-
-const estacaoIcon = L.divIcon({
-  className: '',
-  html: `<div style="
-    width: 16px; height: 16px; border-radius: 9999px;
-    background: #0f172a; border: 2px solid white;
-    box-shadow: 0 1px 4px rgba(0,0,0,.35);
-  "></div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-})
 
 interface MapaTalhoesProps {
   talhoes: Talhao[]
-  estacoes: EstacaoMapa[]
   onSelecionarTalhao: (talhao: Talhao) => void
   talhaoFoco: Talhao
 }
@@ -43,7 +29,7 @@ function FocoTalhao({ talhao }: { talhao: Talhao }) {
   return null
 }
 
-export function MapaTalhoes({ talhoes, estacoes, onSelecionarTalhao, talhaoFoco }: MapaTalhoesProps) {
+export function MapaTalhoes({ talhoes, onSelecionarTalhao, talhaoFoco }: MapaTalhoesProps) {
   return (
     <MapContainer center={talhaoFoco.centro} zoom={15} maxZoom={19} className="h-full w-full">
       <TileLayer
@@ -77,27 +63,6 @@ export function MapaTalhoes({ talhoes, estacoes, onSelecionarTalhao, talhaoFoco 
             </div>
           </Popup>
         </Polygon>
-      ))}
-
-      {estacoes.map((estacao) => (
-        <Marker key={estacao.codigo} position={estacao.posicao} icon={estacaoIcon}>
-          <Popup>
-            <div className="space-y-1 text-sm">
-              <p className="font-semibold">
-                Estação {estacao.codigo} — {estacao.municipio}
-              </p>
-              {estacao.ultimaMedicao ? (
-                <>
-                  <p>Chuva: {estacao.ultimaMedicao.chuvaMm !== null ? `${estacao.ultimaMedicao.chuvaMm.toFixed(1)} mm` : '—'}</p>
-                  <p>Vento: {estacao.ultimaMedicao.ventoKmh !== null ? `${estacao.ultimaMedicao.ventoKmh.toFixed(1)} km/h` : '—'}</p>
-                  <p className="text-xs text-slate-500">Fonte: {rotuloFonteDados(estacao.ultimaMedicao.fonteDados)}</p>
-                </>
-              ) : (
-                <p>Sem medição recente.</p>
-              )}
-            </div>
-          </Popup>
-        </Marker>
       ))}
     </MapContainer>
   )
