@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { MapContainer, Marker, Polygon, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import { rotuloFonteDados } from '../lib/fonteDados'
 import type { EstacaoMapa, Talhao } from '../types'
 import { STATUS_PLANTIO_COR_MAPA, STATUS_PLANTIO_LABEL } from './ui/Badge'
 
@@ -89,7 +90,7 @@ export function MapaTalhoes({ talhoes, estacoes, onSelecionarTalhao, talhaoFoco 
                 <>
                   <p>Chuva: {estacao.ultimaMedicao.chuvaMm !== null ? `${estacao.ultimaMedicao.chuvaMm.toFixed(1)} mm` : '—'}</p>
                   <p>Vento: {estacao.ultimaMedicao.ventoKmh !== null ? `${estacao.ultimaMedicao.ventoKmh.toFixed(1)} km/h` : '—'}</p>
-                  <p className="text-xs text-slate-500">Fonte: {estacao.ultimaMedicao.fonteDados}</p>
+                  <p className="text-xs text-slate-500">Fonte: {rotuloFonteDados(estacao.ultimaMedicao.fonteDados)}</p>
                 </>
               ) : (
                 <p>Sem medição recente.</p>
