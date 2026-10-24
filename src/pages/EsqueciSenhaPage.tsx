@@ -34,12 +34,15 @@ export function EsqueciSenhaPage() {
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           {enviado ? (
             <p className="text-sm text-slate-700">
-              Se o e-mail existir, um link de redefinição foi enviado. Verifique sua caixa de entrada.
+              Se o e-mail estiver cadastrado, o seu pedido foi registrado. O administrador vai gerar uma senha
+              temporária e enviar para você; com ela, é só entrar com o seu e-mail e escolher a sua senha nova. Quem é
+              gestor recebe um link por e-mail.
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <p className="text-sm text-slate-500">
-                Informe o e-mail da sua conta para receber um link de redefinição de senha.
+                Informe o e-mail da sua conta. O administrador recebe o seu pedido, gera uma senha temporária e envia
+                para você.
               </p>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">E-mail</label>
@@ -53,7 +56,7 @@ export function EsqueciSenhaPage() {
               </div>
               {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
               <Button type="submit" className="w-full" disabled={enviando}>
-                {enviando ? 'Enviando…' : 'Enviar link de redefinição'}
+                {enviando ? 'Enviando…' : 'Pedir nova senha'}
               </Button>
             </form>
           )}

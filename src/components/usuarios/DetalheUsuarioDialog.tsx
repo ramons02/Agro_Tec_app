@@ -16,6 +16,7 @@ const ACAO_ROTULO: Record<AcaoAuditoria, string> = {
   REATIVAR: 'Conta reativada',
   REDEFINIR_SENHA: 'Senha redefinida',
   EDITAR: 'Dados editados',
+  SENHA_ESQUECIDA: 'Pediu nova senha (esqueceu a senha)',
 }
 
 function formatarData(iso: string): string {

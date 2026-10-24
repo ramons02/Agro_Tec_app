@@ -111,13 +111,16 @@ export function AppShell() {
         </nav>
 
         <div className="space-y-1 border-t border-slate-100 p-3">
-          <button
-            onClick={() => navigate('/trocar-senha')}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-          >
-            <KeyIcon className="h-4 w-4" />
-            Trocar minha senha
-          </button>
+          {/* Só o gestor troca a própria senha quando quiser; produtor e agrônomo pedem ao administrador. */}
+          {ehGestor && (
+            <button
+              onClick={() => navigate('/trocar-senha')}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <KeyIcon className="h-4 w-4" />
+              Trocar minha senha
+            </button>
+          )}
           <button
             onClick={handleSair}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"

@@ -26,6 +26,8 @@ export interface UsuarioListado {
   criadoEm: string
   telegramVinculado: boolean
   propriedades: number
+  /** Quando a pessoa pediu nova senha na tela de login; null = sem pedido pendente. */
+  senhaEsquecidaEm: string | null
 }
 
 /** Espelha `GET /usuarios/resumo` (só gestor). */
@@ -36,6 +38,7 @@ export interface ResumoUsuarios {
   cadastrosMes: number
   ultimoCadastroEm: string | null
   pendentes: number
+  senhasEsquecidas: number
 }
 
 /** Ações de gestão registradas na auditoria (espelha `AcaoAuditoria` da API). */
@@ -47,6 +50,7 @@ export type AcaoAuditoria =
   | 'REATIVAR'
   | 'REDEFINIR_SENHA'
   | 'EDITAR'
+  | 'SENHA_ESQUECIDA'
 
 export interface EventoHistorico {
   acao: AcaoAuditoria

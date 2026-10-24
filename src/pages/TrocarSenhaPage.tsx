@@ -10,7 +10,7 @@ const SENHA_MINIMA = 8
  * nenhuma outra tela antes de definir a senha; quem já está usando o sistema pode voltar. */
 export function TrocarSenhaPage() {
   const navigate = useNavigate()
-  const { autenticado, precisaTrocarSenha, trocarSenha, sair } = useAuth()
+  const { autenticado, papel, precisaTrocarSenha, trocarSenha, sair } = useAuth()
   const [senhaAtual, setSenhaAtual] = useState('')
   const [senhaNova, setSenhaNova] = useState('')
   const [confirmacao, setConfirmacao] = useState('')
@@ -18,6 +18,8 @@ export function TrocarSenhaPage() {
   const [enviando, setEnviando] = useState(false)
 
   if (!autenticado) return <Navigate to="/login" replace />
+  // Fora do primeiro acesso, só o gestor troca a própria senha (a API também recusa os demais com 403).
+  if (!precisaTrocarSenha && papel !== 'GESTOR_TECNOLOGIA') return <Navigate to="/mapa" replace />
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
