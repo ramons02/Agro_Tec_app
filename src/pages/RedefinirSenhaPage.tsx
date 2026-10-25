@@ -77,7 +77,7 @@ export function RedefinirSenhaPage() {
           )}
 
           <p className="text-center text-xs text-slate-500">
-            <Link to="/login" className="font-medium text-emerald-700 hover:underline">
+            <Link to="/login" className="alvo-toque font-medium text-emerald-700 hover:underline">
               Voltar para o login
             </Link>
           </p>

@@ -130,7 +130,7 @@ export function CadastroContaPage() {
               {papeisDisponiveis.map((p) => (
                 <label
                   key={p.valor}
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors max-lg:min-h-11 ${
                     papel === p.valor
                       ? 'border-emerald-500 bg-emerald-50'
                       : 'border-slate-200 hover:bg-slate-50'
