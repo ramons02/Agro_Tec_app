@@ -8,10 +8,11 @@ import {
   type ReactNode,
 } from 'react'
 import { area as turfArea } from '@turf/turf'
-import { apiDelete, apiGet, apiPost, apiPut } from '../lib/apiClient'
+import { ApiError, apiDelete, apiGet, apiPost, apiPut } from '../lib/apiClient'
 import { mapPropriedade, mapTalhao, mesclarStatusPlantio, type DashboardItemApi } from '../lib/apiMappers'
 import { centroide, primeiroAnelParaLeaflet } from '../lib/geo'
 import { lerCacheDados, salvarCacheDados } from '../lib/indexedDb'
+import { usuarioAtualId } from '../lib/sessao'
 import { aoSincronizarComSucesso, executarOuEnfileirar } from '../lib/filaSincronizacao'
 import { useAuth } from './AuthContext'
 import type { GeometriaGeoJSON, Propriedade, Talhao } from '../types'
@@ -88,12 +89,23 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       // Guarda pra navegação offline (HU-16) -- nunca guarda clima/pulverização aqui,
       // só o cadastro (propriedade/talhão), que não tem a regra de "nunca tempo real
       // obsoleto" (FR-005) porque não é um dado que expira em minutos.
-      void salvarCacheDados<CachePropriedadesTalhoes>('propriedades-talhoes', {
-        propriedades: propriedadesCarregadas,
-        talhoes: talhoesCarregados,
-      })
-    } catch {
-      const cache = await lerCacheDados<CachePropriedadesTalhoes>('propriedades-talhoes')
+      // Chave por usuário: o cache de um nunca serve a outro que use o mesmo aparelho.
+      const usuarioId = usuarioAtualId()
+      if (usuarioId) {
+        void salvarCacheDados<CachePropriedadesTalhoes>(`propriedades-talhoes:${usuarioId}`, {
+          propriedades: propriedadesCarregadas,
+          talhoes: talhoesCarregados,
+        })
+      }
+    } catch (excecao) {
+      // A API respondeu e recusou (401, 403, 404...): mostrar dado guardado seria ignorar a recusa. O cache só vale
+      // quando a rede falhou de verdade ou o servidor está fora (5xx), e mesmo assim só o do usuário atual.
+      const recusadaPelaApi = excecao instanceof ApiError && excecao.codigo < 500
+      const usuarioId = usuarioAtualId()
+      const cache =
+        recusadaPelaApi || !usuarioId
+          ? null
+          : await lerCacheDados<CachePropriedadesTalhoes>(`propriedades-talhoes:${usuarioId}`)
       if (cache) {
         setPropriedades(cache.dados.propriedades)
         setTalhoes(cache.dados.talhoes)

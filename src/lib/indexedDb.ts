@@ -18,6 +18,8 @@ export interface CacheDados<T = unknown> {
 
 export interface AcaoPendente {
   idLocal: string
+  /** Dono da ação: ela só é enviada quando esse mesmo usuário estiver logado (nunca com o login de outro). */
+  usuarioId: string
   metodo: 'POST' | 'PUT' | 'DELETE'
   caminho: string
   corpo: unknown | null
@@ -80,9 +82,11 @@ export async function lerCacheDados<T>(chave: string): Promise<CacheDados<T> | n
 
 export async function enfileirarAcaoPendente(
   acao: Pick<AcaoPendente, 'metodo' | 'caminho' | 'corpo'>,
+  usuarioId: string,
 ): Promise<void> {
   const entrada: AcaoPendente = {
     idLocal: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    usuarioId,
     metodo: acao.metodo,
     caminho: acao.caminho,
     corpo: acao.corpo,
@@ -92,8 +96,24 @@ export async function enfileirarAcaoPendente(
   await comStore(STORE_ACOES, 'readwrite', (store) => store.add(entrada))
 }
 
-export async function listarAcoesPendentes(): Promise<AcaoPendente[]> {
-  return comStore<AcaoPendente[]>(STORE_ACOES, 'readonly', (store) => store.getAll())
+/** Ações pendentes DO usuário informado; as de outras contas do mesmo aparelho ficam guardadas, sem serem enviadas. */
+export async function listarAcoesPendentes(usuarioId: string | null): Promise<AcaoPendente[]> {
+  if (!usuarioId) return []
+  const todas = await comStore<AcaoPendente[]>(STORE_ACOES, 'readonly', (store) => store.getAll())
+  return todas.filter((acao) => acao.usuarioId === usuarioId)
+}
+
+/** Apaga todo o cache de dados do aparelho (ao sair). A fila de ações pendentes não é tocada: ela é do dono dela. */
+export async function limparCacheDados(): Promise<void> {
+  await comStore(STORE_CACHE, 'readwrite', (store) => store.clear())
+}
+
+/** Apaga o cache de todos os usuários, menos o do informado. */
+export async function limparCacheDeOutrosUsuarios(usuarioId: string): Promise<void> {
+  const chaves = await comStore<IDBValidKey[]>(STORE_CACHE, 'readonly', (store) => store.getAllKeys())
+  for (const chave of chaves) {
+    if (!String(chave).endsWith(`:${usuarioId}`)) await comStore(STORE_CACHE, 'readwrite', (store) => store.delete(chave))
+  }
 }
 
 export async function removerAcaoPendente(idLocal: string): Promise<void> {

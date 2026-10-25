@@ -12,6 +12,7 @@ import {
   removerAcaoPendente,
   type AcaoPendente,
 } from './indexedDb'
+import { usuarioAtualId } from './sessao'
 
 const LIMITE_TENTATIVAS = 5
 
@@ -62,7 +63,9 @@ export async function executarOuEnfileirar<T>(
     return await chamar()
   } catch (erro) {
     if (!erroDeRede(erro)) throw erro
-    await enfileirarAcaoPendente({ metodo, caminho, corpo })
+    const usuarioId = usuarioAtualId()
+    if (!usuarioId) throw erro // sem sessão não há de quem guardar a ação
+    await enfileirarAcaoPendente({ metodo, caminho, corpo }, usuarioId)
     notificar()
     return null
   }
@@ -75,7 +78,7 @@ async function executarAcao(acao: AcaoPendente): Promise<void> {
 }
 
 export async function processarFila(): Promise<void> {
-  const acoes = await listarAcoesPendentes()
+  const acoes = await listarAcoesPendentes(usuarioAtualId())
   for (const acao of acoes) {
     try {
       await executarAcao(acao)
@@ -106,5 +109,5 @@ export function iniciarSincronizacaoAutomatica(): void {
 }
 
 export async function contarAcoesPendentes(): Promise<number> {
-  return (await listarAcoesPendentes()).length
+  return (await listarAcoesPendentes(usuarioAtualId())).length
 }
