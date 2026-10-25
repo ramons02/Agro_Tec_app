@@ -4,12 +4,14 @@
  * (evento `online`), removida da fila só após confirmação de sucesso — nunca duplica
  * (research.md: reenviar até confirmação é o padrão mínimo de sincronização confiável).
  */
-import { apiDelete, apiPost, apiPut } from './apiClient'
+import { ApiError, apiDelete, apiPost, apiPut } from './apiClient'
 import {
   enfileirarAcaoPendente,
   incrementarTentativa,
   listarAcoesPendentes,
+  listarAcoesRecusadas,
   removerAcaoPendente,
+  salvarAcaoPendente,
   type AcaoPendente,
 } from './indexedDb'
 import { usuarioAtualId } from './sessao'
@@ -58,6 +60,8 @@ export async function executarOuEnfileirar<T>(
   caminho: string,
   corpo: unknown | null,
   chamar: () => Promise<T>,
+  /** Id provisório do registro que a ação cria, para trocar pelo id real nas ações seguintes da fila. */
+  refLocal?: string,
 ): Promise<T | null> {
   try {
     return await chamar()
@@ -65,36 +69,84 @@ export async function executarOuEnfileirar<T>(
     if (!erroDeRede(erro)) throw erro
     const usuarioId = usuarioAtualId()
     if (!usuarioId) throw erro // sem sessão não há de quem guardar a ação
-    await enfileirarAcaoPendente({ metodo, caminho, corpo }, usuarioId)
+    await enfileirarAcaoPendente({ metodo, caminho, corpo, refLocal }, usuarioId)
     notificar()
     return null
   }
 }
 
-async function executarAcao(acao: AcaoPendente): Promise<void> {
-  if (acao.metodo === 'POST') await apiPost(acao.caminho, acao.corpo ?? undefined)
-  else if (acao.metodo === 'PUT') await apiPut(acao.caminho, acao.corpo)
-  else await apiDelete(acao.caminho)
+async function executarAcao(acao: AcaoPendente): Promise<unknown> {
+  if (acao.metodo === 'POST') return apiPost(acao.caminho, acao.corpo ?? undefined)
+  if (acao.metodo === 'PUT') return apiPut(acao.caminho, acao.corpo)
+  return apiDelete(acao.caminho)
 }
 
+/** Troca `antigo` por `novo` em todo texto do corpo (propriedade_id, por exemplo) e no caminho. */
+function trocarReferencia<T>(valor: T, antigo: string, novo: string): T {
+  if (typeof valor === 'string') return (valor === antigo ? novo : valor.split(antigo).join(novo)) as T
+  if (Array.isArray(valor)) return valor.map((v) => trocarReferencia(v, antigo, novo)) as T
+  if (valor && typeof valor === 'object') {
+    return Object.fromEntries(Object.entries(valor).map(([k, v]) => [k, trocarReferencia(v, antigo, novo)])) as T
+  }
+  return valor
+}
+
+/** Uma propriedade ou talhão criado offline ganhou id real: as ações seguintes da fila que o citam passam a usar o id real. */
+async function propagarIdReal(acao: AcaoPendente, resposta: unknown, restantes: AcaoPendente[]) {
+  const idReal = (resposta as { id?: unknown } | null)?.id
+  if (!acao.refLocal || typeof idReal !== 'string') return
+  for (const outra of restantes) {
+    if (outra.idLocal === acao.idLocal) continue
+    await salvarAcaoPendente({
+      ...outra,
+      caminho: trocarReferencia(outra.caminho, acao.refLocal, idReal),
+      corpo: trocarReferencia(outra.corpo, acao.refLocal, idReal),
+    })
+  }
+}
+
+/** Erro 4xx (exceto 408/429) é recusa por regra de negócio: reenviar não adianta, a pessoa precisa corrigir. */
+function recusaDefinitiva(erro: ApiError): boolean {
+  return erro.codigo >= 400 && erro.codigo < 500 && erro.codigo !== 408 && erro.codigo !== 429
+}
+
+async function marcarRecusada(acao: AcaoPendente, motivo: string) {
+  await salvarAcaoPendente({ ...acao, recusadaEm: new Date().toISOString(), motivoRecusa: motivo })
+}
+
+let processando = false
+
 export async function processarFila(): Promise<void> {
-  const acoes = await listarAcoesPendentes(usuarioAtualId())
-  for (const acao of acoes) {
-    try {
-      await executarAcao(acao)
-      await removerAcaoPendente(acao.idLocal)
-      notificar()
-      notificarSincronizacao()
-    } catch (erro) {
-      if (erroDeRede(erro)) return // ainda sem rede de verdade -- tenta de novo na próxima reconexão
-      if (acao.tentativas + 1 >= LIMITE_TENTATIVAS) {
-        // Erro persistente do servidor (não de rede) -- desiste pra não tentar pra sempre.
+  if (processando) return
+  processando = true
+  try {
+    let acoes = await listarAcoesPendentes(usuarioAtualId())
+    while (acoes.length > 0) {
+      const acao = acoes[0]
+      try {
+        const resposta = await executarAcao(acao)
         await removerAcaoPendente(acao.idLocal)
-      } else {
-        await incrementarTentativa(acao)
+        await propagarIdReal(acao, resposta, acoes.slice(1))
+        notificar()
+        notificarSincronizacao()
+      } catch (erro) {
+        if (erroDeRede(erro)) return // ainda sem rede de verdade -- tenta de novo na próxima reconexão
+        const mensagem = erro instanceof ApiError ? erro.message : 'Erro inesperado ao sincronizar.'
+        if ((erro instanceof ApiError && recusaDefinitiva(erro)) || acao.tentativas + 1 >= LIMITE_TENTATIVAS) {
+          // Não some em silêncio: a ação fica guardada como recusada, com o motivo, para a pessoa ver.
+          await marcarRecusada(acao, mensagem)
+          notificar()
+          notificarSincronizacao() // recarrega do servidor e tira o registro provisório da tela
+        } else {
+          await incrementarTentativa(acao)
+          notificar()
+          return // erro do servidor: tenta de novo na próxima reconexão, sem martelar a API
+        }
       }
-      notificar()
+      acoes = await listarAcoesPendentes(usuarioAtualId())
     }
+  } finally {
+    processando = false
   }
 }
 
@@ -106,6 +158,16 @@ export function iniciarSincronizacaoAutomatica(): void {
   escutandoOnline = true
   window.addEventListener('online', () => void processarFila())
   if (navigator.onLine) void processarFila()
+}
+
+export async function acoesRecusadas(): Promise<AcaoPendente[]> {
+  return listarAcoesRecusadas(usuarioAtualId())
+}
+
+/** A pessoa viu o motivo: tira a ação recusada da lista. */
+export async function dispensarAcaoRecusada(idLocal: string): Promise<void> {
+  await removerAcaoPendente(idLocal)
+  notificar()
 }
 
 export async function contarAcoesPendentes(): Promise<number> {

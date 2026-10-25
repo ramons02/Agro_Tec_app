@@ -25,6 +25,11 @@ export interface AcaoPendente {
   corpo: unknown | null
   criadoEm: string
   tentativas: number
+  /** Id provisório (`local-...`) do registro que esta ação cria; outras ações da fila que o citam passam a usar o id real. */
+  refLocal?: string
+  /** O servidor recusou a ação (regra de negócio ou erro persistente). Fica guardada até a pessoa ver o motivo. */
+  recusadaEm?: string
+  motivoRecusa?: string
 }
 
 let bancoPromise: Promise<IDBDatabase> | null = null
@@ -81,7 +86,7 @@ export async function lerCacheDados<T>(chave: string): Promise<CacheDados<T> | n
 }
 
 export async function enfileirarAcaoPendente(
-  acao: Pick<AcaoPendente, 'metodo' | 'caminho' | 'corpo'>,
+  acao: Pick<AcaoPendente, 'metodo' | 'caminho' | 'corpo' | 'refLocal'>,
   usuarioId: string,
 ): Promise<void> {
   const entrada: AcaoPendente = {
@@ -90,6 +95,7 @@ export async function enfileirarAcaoPendente(
     metodo: acao.metodo,
     caminho: acao.caminho,
     corpo: acao.corpo,
+    refLocal: acao.refLocal,
     criadoEm: new Date().toISOString(),
     tentativas: 0,
   }
@@ -100,7 +106,18 @@ export async function enfileirarAcaoPendente(
 export async function listarAcoesPendentes(usuarioId: string | null): Promise<AcaoPendente[]> {
   if (!usuarioId) return []
   const todas = await comStore<AcaoPendente[]>(STORE_ACOES, 'readonly', (store) => store.getAll())
-  return todas.filter((acao) => acao.usuarioId === usuarioId)
+  return todas.filter((acao) => acao.usuarioId === usuarioId && !acao.recusadaEm)
+}
+
+/** Ações do usuário que o servidor recusou ao sincronizar: a pessoa precisa saber e refazer. */
+export async function listarAcoesRecusadas(usuarioId: string | null): Promise<AcaoPendente[]> {
+  if (!usuarioId) return []
+  const todas = await comStore<AcaoPendente[]>(STORE_ACOES, 'readonly', (store) => store.getAll())
+  return todas.filter((acao) => acao.usuarioId === usuarioId && !!acao.recusadaEm)
+}
+
+export async function salvarAcaoPendente(acao: AcaoPendente): Promise<void> {
+  await comStore(STORE_ACOES, 'readwrite', (store) => store.put(acao))
 }
 
 /** Apaga todo o cache de dados do aparelho (ao sair). A fila de ações pendentes não é tocada: ela é do dono dela. */
