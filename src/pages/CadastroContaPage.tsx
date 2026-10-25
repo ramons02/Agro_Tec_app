@@ -53,7 +53,7 @@ export function CadastroContaPage() {
 
   if (concluido) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
         <div className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
           {convite ? (
             <>
@@ -78,7 +78,7 @@ export function CadastroContaPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-lg font-semibold text-slate-900">Criar conta</h1>

@@ -29,3 +29,51 @@ body {
   height: 100%;
   border-radius: 0.75rem;
 }
+
+
+/* ---------------------------------------------------------------------------------------------------------------
+   Responsividade (spec 027). Vale em telas de toque (qualquer largura) e em qualquer tela abaixo de 1024 px;
+   em desktop com mouse nada muda.
+   --------------------------------------------------------------------------------------------------------------- */
+@media (pointer: coarse), (max-width: 1023px) {
+  /* Alvo de toque de pelo menos 44 por 44 px (FR-014). Links dentro de uma frase de texto ficam como estão. */
+  button,
+  [role="button"],
+  select,
+  summary,
+  nav a,
+  .alvo-toque,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+  textarea {
+    min-height: 2.75rem;
+  }
+
+  button,
+  [role="button"],
+  nav a,
+  .alvo-toque {
+    min-width: 2.75rem;
+  }
+
+  /* Texto de campo com 16 px: com menos que isso o iPhone dá zoom sozinho ao focar o campo (FR-015). */
+  input,
+  select,
+  textarea {
+    font-size: 1rem !important;
+  }
+
+  /* Controles de zoom do mapa (a atribuição legal do Esri e do Leaflet fica como está). */
+  .leaflet-bar a,
+  .leaflet-bar a:hover {
+    width: 2.75rem;
+    height: 2.75rem;
+    line-height: 2.75rem;
+    font-size: 1.25rem;
+  }
+}
+
+/* Link isolado (fora de uma frase) que precisa de área de toque: usar com `alvo-toque` e centralizar o texto. */
+.alvo-toque {
+  display: inline-flex;
+  align-items: center;
+}

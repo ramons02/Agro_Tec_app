@@ -56,7 +56,7 @@ export function TrocarSenhaPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-lg font-semibold text-slate-900">

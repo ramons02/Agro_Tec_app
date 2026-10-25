@@ -2,10 +2,9 @@
 //   bun scripts/responsivo/validar.ts --saida <pasta> [--app http://localhost:5173] [--api http://localhost:8080] [--contas contas.json] [--so-publicas]
 // `contas.json` fica fora do repositório: { "ADMIN_MASTER": {"email": "...", "senha": "..."}, "GESTOR_TECNOLOGIA": {...}, "PRODUTOR_RURAL": {...}, "AGRONOMO": {...} }
 // O app usa HashRouter: as rotas são `/#/rota`. Sem dependência nova: Chrome headless conduzido por CDP (WebSocket do Bun).
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { spawn } from 'node:child_process'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { dorme, iniciarChrome, login, type Papel } from './comum.ts'
 
 const args = process.argv.slice(2)
 const opt = (nome: string, padrao?: string) => {
@@ -19,8 +18,6 @@ const ARQUIVO_CONTAS = opt('contas')
 const SO_PUBLICAS = args.includes('--so-publicas')
 const FILTRO_ROTAS = opt('rotas')?.split(',')
 const FILTRO_LARGURAS = opt('larguras')?.split(',')
-
-type Papel = 'ADMIN_MASTER' | 'GESTOR_TECNOLOGIA' | 'PRODUTOR_RURAL' | 'AGRONOMO'
 
 const LARGURAS = [
   { nome: '320', w: 320, h: 568 },
@@ -44,68 +41,6 @@ const TELAS_INTERNAS: { rota: string; papeis: Papel[] }[] = [
   { rota: '/grupos', papeis: ['ADMIN_MASTER'] },
 ]
 
-// ---------- CDP ----------
-class Cdp {
-  private id = 0
-  private pendentes = new Map<number, (v: any) => void>()
-  eventos: ((m: any) => void)[] = []
-  private constructor(private ws: WebSocket) {
-    ws.onmessage = (e) => {
-      const m = JSON.parse(String(e.data))
-      if (m.method) this.eventos.forEach((f) => f(m))
-      if (m.id && this.pendentes.has(m.id)) {
-        this.pendentes.get(m.id)!(m)
-        this.pendentes.delete(m.id)
-      }
-    }
-  }
-  static async conectar(url: string) {
-    const ws = new WebSocket(url)
-    await new Promise<void>((ok, erro) => {
-      ws.onopen = () => ok()
-      ws.onerror = () => erro(new Error('falha ao conectar no Chrome'))
-    })
-    return new Cdp(ws)
-  }
-  enviar(method: string, params: object = {}): Promise<any> {
-    const id = ++this.id
-    return new Promise((ok, erro) => {
-      this.pendentes.set(id, (m) => (m.error ? erro(new Error(`${method}: ${m.error.message}`)) : ok(m.result)))
-      this.ws.send(JSON.stringify({ id, method, params }))
-    })
-  }
-  fechar() {
-    this.ws.close()
-  }
-}
-
-const dorme = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-async function iniciarChrome() {
-  const porta = 9333 + Math.floor(Math.random() * 500)
-  // Perfil temporário fora da pasta de saída: o perfil do Chrome tem centenas de MB e guarda localStorage (token de teste).
-  const perfil = mkdtempSync(join(tmpdir(), 'validar-responsivo-'))
-  const proc = spawn(
-    'google-chrome',
-    [`--remote-debugging-port=${porta}`, '--headless=new', '--no-sandbox', '--disable-gpu', `--user-data-dir=${perfil}`, 'about:blank'],
-    { stdio: 'ignore' },
-  )
-  for (let i = 0; i < 50; i++) {
-    try {
-      const r = await fetch(`http://127.0.0.1:${porta}/json`)
-      const abas = (await r.json()) as { type: string; webSocketDebuggerUrl: string }[]
-      const aba = abas.find((a) => a.type === 'page')
-      if (aba) return { proc, perfil, cdp: await Cdp.conectar(aba.webSocketDebuggerUrl) }
-    } catch {
-      // Chrome ainda subindo
-    }
-    await dorme(200)
-  }
-  proc.kill()
-  rmSync(perfil, { recursive: true, force: true })
-  throw new Error('Chrome não subiu')
-}
-
 // Roda dentro da página: mede rolagem horizontal, alvos de toque e elementos fora da janela.
 const MEDIR = `(() => {
   const toque = matchMedia('(pointer: coarse)').matches
@@ -115,9 +50,13 @@ const MEDIR = `(() => {
     const cs = getComputedStyle(el)
     return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0'
   }
+  // Gaveta fechada (inert) e tudo que mora dentro de um elemento fixo (gaveta, camada escura, diálogos) fica fora da medida.
+  const inerte = (el) => !!el.closest('[inert]')
+  const emFixo = (el) => { for (let p = el; p; p = p.parentElement) if (getComputedStyle(p).position === 'fixed') return true; return false }
   const descreve = (el) => (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + ' "' + (el.innerText || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().slice(0, 30) + '"')
   const alvos = [...document.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role=button], [role=tab]')]
     .filter(visivel)
+    .filter((el) => !inerte(el))
     .filter((el) => !el.closest('.leaflet-tile-pane, .leaflet-attribution-flag'))
     // Exceções combinadas na spec (FR-014): atribuição legal do mapa e link dentro de uma frase de texto.
     .filter((el) => !el.closest('.leaflet-control-attribution'))
@@ -127,13 +66,13 @@ const MEDIR = `(() => {
     .map(({ el, r }) => descreve(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height))
   // O app rola dentro do <main>, não no documento: conteúdo largo demais ali não aparece em scrollWidth do documento.
   const interna = [...document.querySelectorAll('body *')]
-    .filter((el) => !el.closest('.leaflet-container'))
+    .filter((el) => !el.closest('.leaflet-container') && !inerte(el))
     .filter((el) => { const o = getComputedStyle(el).overflowX; return (o === 'auto' || o === 'scroll') && el.scrollWidth > el.clientWidth + 1 })
     .slice(0, 5)
     .map((el) => descreve(el) + ' ' + el.scrollWidth + '>' + el.clientWidth)
   const fora = [...document.querySelectorAll('body *')]
     .filter(visivel)
-    .filter((el) => getComputedStyle(el).position !== 'fixed' && !el.closest('.leaflet-container, [aria-hidden=true]'))
+    .filter((el) => !inerte(el) && !emFixo(el) && !el.closest('.leaflet-container, [aria-hidden=true]'))
     .filter((el) => { const r = el.getBoundingClientRect(); return r.right > vw + 1 || r.left < -1 })
     .slice(0, 5)
     .map((el) => descreve(el))
@@ -168,18 +107,6 @@ type Resultado = {
   rolagemInterna: string[]
   captura: string
   erro?: string
-}
-
-async function login(papel: Papel, conta: { email: string; senha: string }) {
-  const r = await fetch(`${API}/api/v1/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: conta.email, senha: conta.senha }),
-  })
-  if (!r.ok) throw new Error(`login de ${papel} recusado (${r.status})`)
-  const corpo = (await r.json()) as { dados?: { token: string; papel: string }; token?: string; papel?: string }
-  const d = corpo.dados ?? (corpo as { token: string; papel: string })
-  return { token: d.token, papel: d.papel }
 }
 
 async function main() {
@@ -244,6 +171,8 @@ async function main() {
         captura: nome, erro,
       })
       console.log(`${perfil.padEnd(18)} ${rota.padEnd(15)} ${l.nome.padEnd(13)} ->${(medida?.rota ?? '?').padEnd(14)} rolagem=${medida?.rolagemHorizontal ? 'SIM' : 'nao'} interna=${medida?.rolagemInterna?.length ?? '?'} alvos<44=${medida?.alvosPequenos ?? '?'}${erro ? '  ERRO: ' + erro.slice(0, 60) : ''}`)
+      const detalhe = [...(medida?.elementosFora ?? []).map((x: string) => 'fora: ' + x), ...(medida?.rolagemInterna ?? []).map((x: string) => 'interna: ' + x), ...(medida?.exemplosAlvos ?? []).slice(0, 2).map((x: string) => 'alvo: ' + x)]
+      if (detalhe.length) console.log('    ' + detalhe.slice(0, 3).join(' | '))
     }
   }
 
@@ -255,7 +184,7 @@ async function main() {
 
   if (!SO_PUBLICAS) {
     for (const papel of Object.keys(contas) as Papel[]) {
-      const sessao = await login(papel, contas[papel]!)
+      const sessao = await login(API, papel, contas[papel]!)
       await cdp.enviar('Page.navigate', { url: `${APP}/#/login` })
       await dorme(1000)
       await cdp.enviar('Runtime.evaluate', {

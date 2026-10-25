@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { MenuUsuario } from '../components/MenuUsuario'
+import { Gaveta } from './Gaveta'
 import { aoMudarFila, contarAcoesPendentes, iniciarSincronizacaoAutomatica } from '../lib/filaSincronizacao'
 import { ehGestor as papelEhGestor, ehMaster } from '../lib/papeis'
 import { useAuth } from '../store/AuthContext'
@@ -81,14 +82,23 @@ export function AppShell() {
   )
   const estadoConexao = useEstadoConexao()
 
+  // Abaixo de 1024 px o menu é uma gaveta (spec 027); a partir daí o estado é ignorado. Guarda em qual rota a
+  // gaveta foi aberta: ao navegar (menu, botão voltar) a rota muda e a gaveta fecha sozinha, sem efeito.
+  const { pathname } = useLocation()
+  const [menuAbertoEm, setMenuAbertoEm] = useState<string | null>(null)
+  const menuAberto = menuAbertoEm === pathname
+  function fecharMenu() {
+    setMenuAbertoEm(null)
+  }
+
   function handleSair() {
     sair()
     navigate('/login')
   }
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
+    <div className="flex h-dvh bg-slate-50">
+      <Gaveta id="menu-principal" aberta={menuAberto} aoFechar={fecharMenu} rotulo="Menu principal">
         <div className="flex items-center gap-2 px-5 py-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
             <LeafIcon className="h-5 w-5" />
@@ -104,6 +114,7 @@ export function AppShell() {
             <NavLink
               key={to}
               to={to}
+              onClick={fecharMenu}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
@@ -117,20 +128,29 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-
-      </aside>
+      </Gaveta>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+        <header className="flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 pt-[env(safe-area-inset-top)] sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMenuAbertoEm(menuAberto ? null : pathname)}
+              aria-label={menuAberto ? 'Fechar menu' : 'Abrir menu'}
+              aria-expanded={menuAberto}
+              aria-controls="menu-principal"
+              className="flex items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden"
+            >
+              <MenuIcon className="h-5 w-5" />
+            </button>
+            <p className="hidden truncate text-xs font-medium uppercase tracking-wide text-slate-400 min-[420px]:block">
               AgroClima Pará
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {estadoConexao && (
               <span
-                className={`rounded-full px-2.5 py-1 text-xs font-medium ${estadoConexao.cor}`}
+                className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${estadoConexao.cor}`}
               >
                 {estadoConexao.rotulo}
               </span>
@@ -148,7 +168,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6">
           <Outlet />
         </main>
       </div>
@@ -157,6 +177,14 @@ export function AppShell() {
 }
 
 type IconProps = { className?: string }
+
+function MenuIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+    </svg>
+  )
+}
 
 function MapIcon({ className }: IconProps) {
   return (
