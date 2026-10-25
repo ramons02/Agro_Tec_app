@@ -109,6 +109,8 @@ export interface Propriedade {
   municipio: string | null
   proprietarioId: string
   geometria: GeometriaGeoJSON | null
+  /** Grupo (cliente) da propriedade; nulo em propriedade antiga sem grupo. */
+  grupo?: { id: string; nome: string } | null
 }
 
 export interface PontoHistoricoUmidade {

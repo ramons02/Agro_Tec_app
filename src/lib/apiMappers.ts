@@ -7,6 +7,7 @@ interface PropriedadeApi {
   municipio: string | null
   proprietario_id: string
   geometria: GeometriaGeoJSON | null
+  grupo?: { id: string; nome: string } | null
 }
 
 export function mapPropriedade(dados: PropriedadeApi): Propriedade {
@@ -16,6 +17,7 @@ export function mapPropriedade(dados: PropriedadeApi): Propriedade {
     municipio: dados.municipio,
     proprietarioId: dados.proprietario_id,
     geometria: dados.geometria,
+    grupo: dados.grupo ?? null,
   }
 }
 

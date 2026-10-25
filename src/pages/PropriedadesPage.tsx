@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BadgeStatusPlantio } from '../components/ui/Badge'
+import { FiltroDeGrupo } from '../components/FiltroDeGrupo'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
+import { TODOS_OS_GRUPOS, gruposDasPropriedades, propriedadeNoGrupo } from '../lib/grupos'
 import { useAppData } from '../store/AppDataContext'
 import { useAuth } from '../store/AuthContext'
 
@@ -9,16 +11,18 @@ export function PropriedadesPage() {
   const { propriedades, talhoes, removerTalhao, removerPropriedade, carregando, erro } = useAppData()
   const { papel } = useAuth()
   const podeEscrever = papel !== 'AGRONOMO'
+  const ehMaster = papel === 'ADMIN_MASTER'
   const [busca, setBusca] = useState('')
+  const [grupoFiltro, setGrupoFiltro] = useState(TODOS_OS_GRUPOS)
 
   const termoBusca = busca.trim().toLowerCase()
-  const propriedadesFiltradas = termoBusca
-    ? propriedades.filter(
-        (p) =>
-          p.nome.toLowerCase().includes(termoBusca) ||
-          (p.municipio?.toLowerCase().includes(termoBusca) ?? false),
-      )
-    : propriedades
+  const propriedadesFiltradas = propriedades.filter(
+    (p) =>
+      (!ehMaster || propriedadeNoGrupo(p, grupoFiltro)) &&
+      (!termoBusca ||
+        p.nome.toLowerCase().includes(termoBusca) ||
+        (p.municipio?.toLowerCase().includes(termoBusca) ?? false)),
+  )
 
   async function handleExcluir(talhaoId: string, nomeTalhao: string) {
     const confirmado = window.confirm(
@@ -65,17 +69,27 @@ export function PropriedadesPage() {
       )}
 
       {propriedades.length > 0 && (
-        <input
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar por nome da propriedade ou cidade…"
-          className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por nome da propriedade ou cidade…"
+            className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+          />
+          {ehMaster && (
+            <FiltroDeGrupo
+              grupos={gruposDasPropriedades(propriedades)}
+              valor={grupoFiltro}
+              aoMudar={setGrupoFiltro}
+              haSemGrupo={propriedades.some((p) => !p.grupo)}
+            />
+          )}
+        </div>
       )}
 
-      {termoBusca && propriedadesFiltradas.length === 0 && (
+      {propriedades.length > 0 && propriedadesFiltradas.length === 0 && (
         <p className="text-sm text-slate-400">
-          Nenhuma propriedade encontrada para "{busca}".
+          {termoBusca ? `Nenhuma propriedade encontrada para "${busca}".` : 'Nenhuma propriedade neste grupo.'}
         </p>
       )}
 
@@ -91,6 +105,11 @@ export function PropriedadesPage() {
               <CardHeader className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-900">
                   {propriedade.nome}
+                  {ehMaster && propriedade.grupo && (
+                    <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      {propriedade.grupo.nome}
+                    </span>
+                  )}
                   {propriedade.municipio && (
                     <span className="ml-2 font-normal text-slate-400">
                       {propriedade.municipio}

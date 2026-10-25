@@ -14,9 +14,11 @@ import { PainelRecomendacao } from './PainelRecomendacao'
 
 interface PainelTalhaoProps {
   talhao: Talhao
+  /** Nome do grupo do talhão; só o Master recebe, porque só ele enxerga mais de um grupo. */
+  grupo?: string | null
 }
 
-export function PainelTalhao({ talhao }: PainelTalhaoProps) {
+export function PainelTalhao({ talhao, grupo }: PainelTalhaoProps) {
   const { dados: clima } = useClimaAtual(talhao.id)
   const { dados: pulverizacao } = usePulverizacao(talhao.id)
   const { dados: recomendacao } = useRecomendacao(talhao.id)
@@ -33,6 +35,9 @@ export function PainelTalhao({ talhao }: PainelTalhaoProps) {
         <div>
           <p className="text-sm font-semibold text-slate-900">{talhao.nome}</p>
           <p className="text-xs text-slate-500">{talhao.areaHa.toFixed(1)} ha</p>
+          {grupo !== undefined && (
+            <p className="text-xs text-slate-500">Grupo: {grupo ?? 'sem grupo'}</p>
+          )}
         </div>
         {talhao.statusPlantio && <BadgeStatusPlantio status={talhao.statusPlantio} />}
       </CardHeader>
