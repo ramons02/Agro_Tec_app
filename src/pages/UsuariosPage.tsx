@@ -458,7 +458,6 @@ function PainelUsuarios() {
                     ]
                   : []),
                 { rotulo: 'Propriedades', valor: u.propriedades },
-                { rotulo: 'Telegram', valor: u.telegramVinculado ? 'Vinculado' : '-' },
                 { rotulo: 'Cadastro', valor: formatarData(u.criadoEm) },
                 ...(u.senhaEsquecidaEm
                   ? [{ rotulo: 'Senha', valor: `Pediu nova senha em ${formatarData(u.senhaEsquecidaEm)}` }]
@@ -478,7 +477,6 @@ function PainelUsuarios() {
                 {souMaster && <th className="px-5 py-3 font-medium">Grupo</th>}
                 <th className="px-5 py-3 font-medium">Estado</th>
                 <th className="px-5 py-3 text-right font-medium">Propriedades</th>
-                <th className="px-5 py-3 font-medium">Telegram</th>
                 <th className="px-5 py-3 font-medium">Cadastro</th>
                 <th className="px-5 py-3 text-right font-medium">Ações</th>
               </tr>
@@ -526,7 +524,6 @@ function PainelUsuarios() {
                     )}
                   </td>
                   <td className="px-5 py-3 text-right text-slate-700">{u.propriedades}</td>
-                  <td className="px-5 py-3 text-slate-600">{u.telegramVinculado ? 'Vinculado' : '-'}</td>
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(u.criadoEm)}</td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex flex-wrap justify-end gap-1">{acoesDoUsuario(u)}</div>

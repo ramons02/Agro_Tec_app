@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AvisoDeRecusadas } from '../components/AvisoDeRecusadas'
 import { MenuUsuario } from '../components/MenuUsuario'
+import { SinoDeAlertas } from '../components/SinoDeAlertas'
 import { Gaveta } from './Gaveta'
 import { aoMudarFila, contarAcoesPendentes, iniciarSincronizacaoAutomatica } from '../lib/filaSincronizacao'
 import { ehGestor as papelEhGestor, ehMaster } from '../lib/papeis'
@@ -159,6 +160,7 @@ export function AppShell() {
             <span className="hidden text-xs font-medium text-slate-500 sm:inline">
               {papel ? PAPEL_LABEL[papel] : ''}
             </span>
+            <SinoDeAlertas />
             <MenuUsuario
               iniciais={papel ? PAPEL_INICIAIS[papel] : '?'}
               rotuloPapel={papel ? PAPEL_LABEL[papel] : ''}
