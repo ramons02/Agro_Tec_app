@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ativarAvisos, desativarAvisos, estadoDosAvisos, type EstadoAvisos } from '../lib/push'
+import { ativarAvisos, desativarAvisos, enviarAvisoDeTeste, estadoDosAvisos, type EstadoAvisos } from '../lib/push'
 import {
   listarAlertas,
   marcarAlertaLido,
@@ -22,6 +22,7 @@ export function SinoDeAlertas() {
   const [avisos, setAvisos] = useState<EstadoAvisos>('nao-suportado')
   const [trocandoAvisos, setTrocandoAvisos] = useState(false)
   const [erroAvisos, setErroAvisos] = useState<string | null>(null)
+  const [infoAvisos, setInfoAvisos] = useState<string | null>(null)
 
   const carregar = useCallback(() => {
     // Sem rede ou com erro, fica o que já estava na tela: alerta velho é melhor que tela quebrada.
@@ -80,9 +81,28 @@ export function SinoDeAlertas() {
     void marcarTodosLidos().catch(() => carregar())
   }
 
+  async function testarAvisos() {
+    setTrocandoAvisos(true)
+    setErroAvisos(null)
+    setInfoAvisos(null)
+    try {
+      const enviados = await enviarAvisoDeTeste()
+      setInfoAvisos(
+        enviados > 0
+          ? 'Teste enviado. A notificação deve chegar em alguns segundos, mesmo com o app fechado.'
+          : 'O envio não foi aceito pelo serviço de notificação. Desligue e ligue os avisos e tente de novo.',
+      )
+    } catch (e) {
+      setErroAvisos(e instanceof Error ? e.message : 'Não consegui enviar o teste.')
+    } finally {
+      setTrocandoAvisos(false)
+    }
+  }
+
   async function trocarAvisos() {
     setTrocandoAvisos(true)
     setErroAvisos(null)
+    setInfoAvisos(null)
     try {
       if (avisos === 'ativo') await desativarAvisos()
       else await ativarAvisos()
@@ -169,6 +189,17 @@ export function SinoDeAlertas() {
                   </button>
                 </div>
               )}
+              {avisos === 'ativo' && (
+                <button
+                  type="button"
+                  disabled={trocandoAvisos}
+                  onClick={() => void testarAvisos()}
+                  className="min-h-11 rounded-lg px-1 font-medium text-emerald-700 hover:underline disabled:opacity-40"
+                >
+                  Enviar aviso de teste
+                </button>
+              )}
+              {infoAvisos && <p className="text-emerald-800">{infoAvisos}</p>}
               {erroAvisos && <p className="text-red-700">{erroAvisos}</p>}
             </div>
           )}
