@@ -134,9 +134,7 @@ export function PropriedadesPage() {
                           <th className="px-5 py-2 font-medium">Área</th>
                           <th className="px-5 py-2 font-medium">Solo</th>
                           <th className="px-5 py-2 font-medium">Status</th>
-                          {podeEscrever && (
-                            <th className="px-5 py-2 font-medium text-right">Ação</th>
-                          )}
+                          <th className="px-5 py-2 font-medium text-right">Ação</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -158,16 +156,39 @@ export function PropriedadesPage() {
                                 <span className="text-xs text-slate-400">Ainda sem cálculo</span>
                               )}
                             </td>
-                            {podeEscrever && (
-                              <td className="px-5 py-3 text-right">
-                                <button
-                                  onClick={() => handleExcluir(talhao.id, talhao.nome)}
-                                  className="text-xs font-medium text-red-600 hover:text-red-800"
+                            <td className="px-5 py-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Link
+                                  to="/mapa"
+                                  state={{ talhaoId: talhao.id }}
+                                  title="Visualizar no mapa"
+                                  aria-label={`Visualizar ${talhao.nome} no mapa`}
+                                  className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                                 >
-                                  Excluir
-                                </button>
-                              </td>
-                            )}
+                                  <OlhoIcon className="h-4 w-4" />
+                                </Link>
+                                {podeEscrever && (
+                                  <>
+                                    <Link
+                                      to={`/talhoes/${talhao.id}/editar`}
+                                      title="Editar e reprocessar geometria"
+                                      aria-label={`Editar ${talhao.nome}`}
+                                      className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                                    >
+                                      <LapisIcon className="h-4 w-4" />
+                                    </Link>
+                                    <button
+                                      onClick={() => handleExcluir(talhao.id, talhao.nome)}
+                                      title="Excluir talhão"
+                                      aria-label={`Excluir ${talhao.nome}`}
+                                      className="rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                    >
+                                      <LixeiraIcon className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -180,5 +201,52 @@ export function PropriedadesPage() {
         })}
       </div>
     </div>
+  )
+}
+
+type IconProps = { className?: string }
+
+function IconeBase({ className, children }: IconProps & { children: React.ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      {children}
+    </svg>
+  )
+}
+
+function OlhoIcon({ className }: IconProps) {
+  return (
+    <IconeBase className={className}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </IconeBase>
+  )
+}
+
+function LapisIcon({ className }: IconProps) {
+  return (
+    <IconeBase className={className}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </IconeBase>
+  )
+}
+
+function LixeiraIcon({ className }: IconProps) {
+  return (
+    <IconeBase className={className}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v5M14 11v5" />
+    </IconeBase>
   )
 }
