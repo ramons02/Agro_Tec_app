@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import {
+  Circle,
   CircleMarker,
   MapContainer,
   Polygon,
@@ -22,6 +23,8 @@ interface MapaDesenhoTalhaoProps {
   focoVersao?: number
   /** Pedido de ir a um lugar (busca de cidade): a cada `versao` nova o mapa voa até o centro, no zoom dado. */
   irPara?: { centro: [number, number]; zoom: number; versao: number }
+  /** Ponto de referência (posição do GPS ou coordenada digitada), com a precisão em metros quando houver. */
+  referencia?: { lat: number; lng: number; precisaoM?: number }
 }
 
 function CapturaCliques({ onClick }: { onClick: (ponto: [number, number]) => void }) {
@@ -70,6 +73,7 @@ export function MapaDesenhoTalhao({
   onAdicionarPonto,
   focoVersao = 0,
   irPara,
+  referencia,
 }: MapaDesenhoTalhaoProps) {
   return (
     <MapContainer center={center} zoom={zoom} maxZoom={19} className="h-full w-full">
@@ -94,6 +98,23 @@ export function MapaDesenhoTalhao({
           pathOptions={{ color: '#059669', weight: 2, dashArray: '6 6', interactive: false }}
         />
       ) : null}
+
+      {referencia && (
+        <>
+          {referencia.precisaoM !== undefined && (
+            <Circle
+              center={[referencia.lat, referencia.lng]}
+              radius={referencia.precisaoM}
+              pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 1, interactive: false }}
+            />
+          )}
+          <CircleMarker
+            center={[referencia.lat, referencia.lng]}
+            radius={8}
+            pathOptions={{ color: '#ffffff', fillColor: '#2563eb', fillOpacity: 1, weight: 3, interactive: false }}
+          />
+        </>
+      )}
 
       {pontos.map((ponto, indice) => (
         <CircleMarker
