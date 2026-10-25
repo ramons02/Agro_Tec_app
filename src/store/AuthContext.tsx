@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { apiPost, CHAVE_AVISO_LOGIN, definirToken, EVENTO_CONTA_SUSPENSA, obterToken } from '../lib/apiClient'
 import { limparCacheDados, limparCacheDeOutrosUsuarios } from '../lib/indexedDb'
+import { desligarAvisosAoSair } from '../lib/push'
 import { usuarioIdDoToken } from '../lib/sessao'
 import type { Papel } from '../types'
 
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(CHAVE_PAPEL)
       localStorage.removeItem(CHAVE_TROCA_SENHA)
       void limparCacheDados()
+      void desligarAvisosAoSair()
       setToken(null)
       setPapel(null)
       setPrecisaTrocarSenha(false)
@@ -108,6 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await apiPost('/api/v1/auth/registro', { nome, email, senha, papel, convite, grupo })
       },
       sair: () => {
+        // Antes de apagar o token: o aparelho deixa de receber os avisos desta conta (pode ser um aparelho compartilhado).
+        void desligarAvisosAoSair()
         definirToken(null)
         void limparCacheDados()
         localStorage.removeItem(CHAVE_PAPEL)

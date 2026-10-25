@@ -23,6 +23,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Notificação push com o app fechado: o handler fica em public/push-sw.js e é carregado dentro do service worker.
+        importScripts: ['push-sw.js'],
         // Chamadas de API nunca sao cacheadas pelo Service Worker -- o cache de dados
         // e responsabilidade do AppDataContext + IndexedDB, nao da camada de rede, pra
         // poder aplicar a regra de "nunca servir tempo real como atual" (FR-005,
