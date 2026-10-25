@@ -1,5 +1,5 @@
 import type { GrupoResumo, SenhaTemporaria } from '../types'
-import { apiDelete, apiGet, apiPost } from './apiClient'
+import { apiDelete, apiGet, apiPatch, apiPost } from './apiClient'
 
 export interface ItemGrupo {
   id: string
@@ -39,6 +39,16 @@ export async function criarGrupo(nome: string, adminNome: string, adminEmail: st
     senhaTemporaria: r.senha_temporaria,
     expiraEm: r.senha_temporaria_expira_em,
   }
+}
+
+/** Renomeia o grupo (Master). */
+export async function renomearGrupo(grupoId: string, nome: string): Promise<void> {
+  await apiPatch(`/api/v1/grupos/${grupoId}`, { nome })
+}
+
+/** Exclui um grupo vazio (Master). Com contas ou propriedades a API recusa com 409 e a mensagem explica o motivo. */
+export async function excluirGrupo(grupoId: string): Promise<void> {
+  await apiDelete(`/api/v1/grupos/${grupoId}`)
 }
 
 /** Passa todos os produtores e agrônomos de um grupo para outro (Master). */
