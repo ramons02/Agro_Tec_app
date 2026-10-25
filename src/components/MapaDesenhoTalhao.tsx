@@ -71,12 +71,12 @@ export function MapaDesenhoTalhao({
       {pontos.length >= 3 ? (
         <Polygon
           positions={pontos as LatLngExpression[]}
-          pathOptions={{ color: '#059669', fillColor: '#10b981', fillOpacity: 0.35, weight: 2 }}
+          pathOptions={{ color: '#059669', fillColor: '#10b981', fillOpacity: 0.35, weight: 2, interactive: false }}
         />
       ) : pontos.length === 2 ? (
         <Polyline
           positions={pontos as LatLngExpression[]}
-          pathOptions={{ color: '#059669', weight: 2, dashArray: '6 6' }}
+          pathOptions={{ color: '#059669', weight: 2, dashArray: '6 6', interactive: false }}
         />
       ) : null}
 
@@ -84,8 +84,9 @@ export function MapaDesenhoTalhao({
         <CircleMarker
           key={indice}
           center={ponto}
-          radius={5}
-          pathOptions={{ color: '#047857', fillColor: '#ffffff', fillOpacity: 1, weight: 2 }}
+          radius={6}
+          // Só desenho: o toque tem de chegar ao mapa para marcar o próximo vértice, mesmo em cima de outro.
+          pathOptions={{ color: '#047857', fillColor: '#ffffff', fillOpacity: 1, weight: 2, interactive: false }}
         />
       ))}
     </MapContainer>

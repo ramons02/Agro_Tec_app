@@ -126,7 +126,7 @@ export function PrevisaoTempoPage() {
       )}
 
       {cidade && (
-        <div className="h-[36rem] overflow-hidden rounded-xl border border-slate-200">
+        <div className="h-[60dvh] min-h-[18rem] overflow-hidden rounded-xl border border-slate-200 lg:h-[36rem]">
           <MapContainer center={[cidade.lat, cidade.lng]} zoom={11} className="h-full w-full">
             <TileLayer
               attribution='&copy; <a href="https://www.esri.com">Esri</a>'
@@ -153,7 +153,7 @@ export function PrevisaoTempoPage() {
       )}
 
       {previsao && previsao.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
           {previsao.map((dia) => (
             <Card key={dia.data}>
               <CardBody className="space-y-2 text-center">

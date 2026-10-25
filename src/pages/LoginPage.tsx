@@ -40,7 +40,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-slate-100 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/30">
@@ -95,10 +95,10 @@ export function LoginPage() {
           </Button>
 
           <div className="flex items-center justify-between text-xs">
-            <Link to="/esqueci-senha" className="font-medium text-emerald-700 hover:underline">
+            <Link to="/esqueci-senha" className="alvo-toque font-medium text-emerald-700 hover:underline">
               Esqueci minha senha
             </Link>
-            <Link to="/cadastro" className="font-medium text-emerald-700 hover:underline">
+            <Link to="/cadastro" className="alvo-toque font-medium text-emerald-700 hover:underline">
               Criar conta
             </Link>
           </div>

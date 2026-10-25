@@ -1,5 +1,5 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import { MapaDesenhoTalhao } from '../components/MapaDesenhoTalhao'
@@ -71,9 +71,12 @@ function extrairPoligonoDeGeoJSON(json: unknown): [number, number][] | null {
 
 export function CadastroTalhaoPage() {
   const navigate = useNavigate()
-  const { propriedades, talhoes, criarPropriedade, criarTalhao } = useAppData()
+  const { id: talhaoEditandoId } = useParams<{ id: string }>()
+  const { propriedades, talhoes, criarPropriedade, criarTalhao, atualizarTalhao } = useAppData()
+  const editando = talhaoEditandoId !== undefined
+  const talhaoEditado = editando ? talhoes.find((t) => t.id === talhaoEditandoId) : undefined
 
-  const [etapa, setEtapa] = useState<Etapa>('DADOS')
+  const [etapa, setEtapa] = useState<Etapa>(editando ? 'GEOMETRIA' : 'DADOS')
   const [nome, setNome] = useState('')
   const [propriedadeId, setPropriedadeId] = useState<string>(propriedades[0]?.id ?? NOVA_PROPRIEDADE)
   const [buscaPropriedade, setBuscaPropriedade] = useState('')
@@ -91,6 +94,17 @@ export function CadastroTalhaoPage() {
   const [enviando, setEnviando] = useState(false)
 
   const inputArquivoRef = useRef<HTMLInputElement>(null)
+  const edicaoCarregadaRef = useRef(false)
+
+  /** Na edição, o formulário parte do talhão salvo; os talhões podem chegar depois da tela (recarga da página). */
+  useEffect(() => {
+    if (!talhaoEditado || edicaoCarregadaRef.current) return
+    edicaoCarregadaRef.current = true
+    setNome(talhaoEditado.nome)
+    setPropriedadeId(talhaoEditado.propriedadeId)
+    setPontos(removerFechamentoDuplicado(talhaoEditado.poligono))
+    setFocoVersaoImportacao((atual) => atual + 1)
+  }, [talhaoEditado])
 
   const criandoNovaPropriedade = propriedadeId === NOVA_PROPRIEDADE
 
@@ -209,11 +223,10 @@ export function CadastroTalhaoPage() {
     setErroEnvio(null)
     setEtapa('ENVIANDO')
     try {
-      const talhao = await criarTalhao({
-        propriedadeId,
-        nome,
-        geometria: pontosLeafletParaPolygon(pontos),
-      })
+      const geometria = pontosLeafletParaPolygon(pontos)
+      const talhao = talhaoEditandoId
+        ? await atualizarTalhao(talhaoEditandoId, { nome, geometria })
+        : await criarTalhao({ propriedadeId, nome, geometria })
       setTalhaoCriado(talhao)
     } catch (excecao) {
       setErroEnvio(excecao instanceof ApiError ? excecao.message : 'Falha ao cadastrar o talhão.')
@@ -236,13 +249,21 @@ export function CadastroTalhaoPage() {
   return (
     <div className={`mx-auto space-y-6 ${etapa === 'GEOMETRIA' ? 'max-w-4xl' : 'max-w-2xl'}`}>
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Cadastrar Talhão</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          {editando ? 'Editar Talhão' : 'Cadastrar Talhão'}
+        </h1>
         <p className="text-sm text-slate-500">
-          Delimite o talhão e deixe a textura do solo ser preenchida automaticamente.
+          {editando
+            ? 'Ajuste o nome ou importe o arquivo atualizado: área e solo são recalculados ao salvar.'
+            : 'Delimite o talhão e deixe a textura do solo ser preenchida automaticamente.'}
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      {editando && !talhaoEditado && (
+        <p className="text-sm text-slate-400">Carregando talhão…</p>
+      )}
+
+      {!editando && <div className="flex items-center gap-2">
         {ETAPAS.map((e, i) => (
           <div key={e.id} className="flex flex-1 items-center gap-2">
             <div
@@ -256,11 +277,12 @@ export function CadastroTalhaoPage() {
             >
               {i + 1}
             </div>
-            <span className="text-xs font-medium text-slate-500">{e.label}</span>
+            {/* No celular só o nome do passo atual aparece; os outros ficam só com o número. */}
+            <span className={`text-xs font-medium text-slate-500 ${e.id === etapa ? '' : 'hidden sm:inline'}`}>{e.label}</span>
             {i < ETAPAS.length - 1 && <div className="h-px flex-1 bg-slate-200" />}
           </div>
         ))}
-      </div>
+      </div>}
 
       {etapa === 'DADOS' && (
         <Card>
@@ -388,7 +410,18 @@ export function CadastroTalhaoPage() {
               precisa estar inteiramente dentro do estado do Pará.
             </p>
 
-            <div className="h-[32rem] overflow-hidden rounded-lg border border-slate-200">
+            {editando && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Nome do talhão</label>
+                <input
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                />
+              </div>
+            )}
+
+            <div className="h-[60dvh] min-h-[18rem] overflow-hidden rounded-lg border border-slate-200 lg:h-[32rem]">
               <MapaDesenhoTalhao
                 center={centroEZoomDaPropriedade(propriedadeId).centro}
                 zoom={centroEZoomDaPropriedade(propriedadeId).zoom}
@@ -398,75 +431,78 @@ export function CadastroTalhaoPage() {
               />
             </div>
 
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-500">
-                {pontos.length} ponto{pontos.length === 1 ? '' : 's'} marcado
-                {pontos.length === 1 ? '' : 's'}
-              </span>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={desfazerUltimoPonto}
-                  disabled={pontos.length === 0}
-                  className="font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40"
-                >
-                  Desfazer último ponto
-                </button>
-                <button
-                  type="button"
-                  onClick={limparPontos}
-                  disabled={pontos.length === 0}
-                  className="font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40"
-                >
-                  Limpar
-                </button>
+            {/* Abaixo de 1024 px esta faixa gruda no pé da tela: contador, avisos e botões ficam ao alcance do polegar sem rolar a página inteira. */}
+            <div className="sticky bottom-0 z-10 -mx-5 space-y-3 border-t border-slate-100 bg-white px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 lg:static lg:mx-0 lg:border-0 lg:p-0">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+                <span className="font-medium text-slate-500">
+                  {pontos.length} ponto{pontos.length === 1 ? '' : 's'} marcado
+                  {pontos.length === 1 ? '' : 's'}
+                </span>
+                <div className="flex flex-wrap gap-x-4">
+                  <button
+                    type="button"
+                    onClick={desfazerUltimoPonto}
+                    disabled={pontos.length === 0}
+                    className="font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40"
+                  >
+                    Desfazer último ponto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={limparPontos}
+                    disabled={pontos.length === 0}
+                    className="font-medium text-slate-600 hover:text-slate-900 disabled:opacity-40"
+                  >
+                    Limpar
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {lendoArquivo && <p className="text-xs font-medium text-slate-500">Lendo o arquivo…</p>}
+              {lendoArquivo && <p className="text-xs font-medium text-slate-500">Lendo o arquivo…</p>}
 
-            {arquivoLido && (
-              <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
-                {arquivoLido}: polígono lido e dentro do Pará. Confira no mapa e confirme.
-              </p>
-            )}
+              {arquivoLido && (
+                <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+                  {arquivoLido}: polígono lido e dentro do Pará. Confira no mapa e confirme.
+                </p>
+              )}
 
-            {foraDoPara && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-                {foraDoPara} O polígono aparece no mapa só para você ver onde ele cai; escolha outro arquivo ou
-                desenhe o talhão dentro do estado.
-              </p>
-            )}
+              {foraDoPara && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                  {foraDoPara} O polígono aparece no mapa só para você ver onde ele cai; escolha outro arquivo ou
+                  desenhe o talhão dentro do estado.
+                </p>
+              )}
 
-            {(erroImportacao || erroEnvio) && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-                {erroImportacao ?? erroEnvio}
-              </p>
-            )}
+              {(erroImportacao || erroEnvio) && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                  {erroImportacao ?? erroEnvio}
+                </p>
+              )}
 
-            <div className="flex gap-3">
-              <input
-                ref={inputArquivoRef}
-                type="file"
-                accept=".zip,.kml,.geojson,.json,application/zip,application/geo+json,application/json,application/vnd.google-earth.kml+xml"
-                onChange={(evento) => void handleArquivoSelecionado(evento)}
-                className="hidden"
-              />
-              <Button
-                variant="secondary"
-                className="flex-1"
-                disabled={lendoArquivo || enviando}
-                onClick={acionarSeletorDeArquivo}
-              >
-                Importar arquivo
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={pontos.length < 3 || enviando || lendoArquivo || foraDoPara !== null}
-                onClick={() => void enviarTalhao()}
-              >
-                Confirmar geometria
-              </Button>
+              <div className="flex gap-3">
+                <input
+                  ref={inputArquivoRef}
+                  type="file"
+                  accept=".zip,.kml,.geojson,.json,application/zip,application/geo+json,application/json,application/vnd.google-earth.kml+xml"
+                  onChange={(evento) => void handleArquivoSelecionado(evento)}
+                  className="hidden"
+                />
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  disabled={lendoArquivo || enviando}
+                  onClick={acionarSeletorDeArquivo}
+                >
+                  Importar arquivo
+                </Button>
+                <Button
+                  className="flex-1"
+                  disabled={pontos.length < 3 || enviando || lendoArquivo || foraDoPara !== null || nome.trim() === ''}
+                  onClick={() => void enviarTalhao()}
+                >
+                  {editando ? 'Salvar alterações' : 'Confirmar geometria'}
+                </Button>
+              </div>
             </div>
           </CardBody>
         </Card>

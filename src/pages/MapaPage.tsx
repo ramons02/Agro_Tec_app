@@ -30,7 +30,7 @@ export function MapaPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex flex-col gap-4 lg:h-full">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Mapa de Talhões</h1>
         <p className="text-sm text-slate-500">
@@ -39,8 +39,9 @@ export function MapaPage() {
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[1fr_320px] gap-4">
-        <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+      {/* Abaixo de 1024 px o painel fica embaixo do mapa e a página rola; a partir de 1024 px, ao lado, como antes. */}
+      <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[1fr_320px]">
+        <div className="h-[60dvh] min-h-[18rem] overflow-hidden rounded-xl border border-slate-200 shadow-sm lg:h-auto">
           <MapaTalhoes
             talhoes={talhoes}
             onSelecionarTalhao={(talhao) => setTalhaoSelecionadoId(talhao.id)}

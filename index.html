@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: o PWA usa a tela toda (a área do notch é tratada com env(safe-area-inset-*)); interactive-widget=resizes-content: o teclado virtual do Chrome para Android encolhe a página e o dvh acompanha. Sem maximum-scale nem user-scalable=no: o zoom do usuário não pode ser bloqueado. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>AgroClima Pará</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

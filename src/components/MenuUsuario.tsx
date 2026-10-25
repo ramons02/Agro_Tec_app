@@ -104,7 +104,7 @@ export function MenuUsuario({ iniciais, rotuloPapel, podeTrocarSenha, onTrocarSe
         <div
           role="dialog"
           aria-label="Meus dados"
-          className="absolute right-0 z-30 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-4 shadow-lg"
+          className="absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border border-slate-200 bg-white p-4 shadow-lg"
         >
           {carregando && !perfil && <p className="text-sm text-slate-400">Carregando…</p>}
           {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}

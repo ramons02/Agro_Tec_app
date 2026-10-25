@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { area as turfArea } from '@turf/turf'
-import { apiDelete, apiGet, apiPost } from '../lib/apiClient'
+import { apiDelete, apiGet, apiPost, apiPut } from '../lib/apiClient'
 import { mapPropriedade, mapTalhao, mesclarStatusPlantio, type DashboardItemApi } from '../lib/apiMappers'
 import { centroide, primeiroAnelParaLeaflet } from '../lib/geo'
 import { lerCacheDados, salvarCacheDados } from '../lib/indexedDb'
@@ -58,6 +58,7 @@ interface AppDataContextValue {
   recarregar: () => Promise<void>
   criarPropriedade: (nome: string, municipio: string) => Promise<Propriedade>
   criarTalhao: (input: CriarTalhaoInput) => Promise<Talhao>
+  atualizarTalhao: (id: string, input: { nome: string; geometria: GeometriaGeoJSON }) => Promise<Talhao>
   removerTalhao: (id: string) => Promise<void>
   removerPropriedade: (id: string) => Promise<void>
 }
@@ -181,6 +182,29 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return talhao
   }, [])
 
+  /** Edição exige rede: o servidor revalida a geometria e recalcula área e solo, então não enfileira offline. */
+  const atualizarTalhao = useCallback(
+    async (id: string, input: { nome: string; geometria: GeometriaGeoJSON }) => {
+      const dados = await apiPut<TalhaoApiShape>(`/api/v1/talhoes/${id}`, input)
+      const atualizado = mapTalhao(dados)
+      let resultado = atualizado
+      setTalhoes((atual) =>
+        atual.map((t) => {
+          if (t.id !== id) return t
+          resultado = {
+            ...atualizado,
+            statusPlantio: t.statusPlantio,
+            armazenamentoMm: t.armazenamentoMm,
+            percentualCad: t.percentualCad,
+          }
+          return resultado
+        }),
+      )
+      return resultado
+    },
+    [],
+  )
+
   const removerTalhao = useCallback(async (id: string) => {
     const caminho = `/api/v1/talhoes/${id}`
     // Sem rede: enfileira (sincroniza sozinho ao reconectar, US2) em vez de falhar --
@@ -205,6 +229,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       recarregar,
       criarPropriedade,
       criarTalhao,
+      atualizarTalhao,
       removerTalhao,
       removerPropriedade,
     }),
@@ -216,6 +241,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       recarregar,
       criarPropriedade,
       criarTalhao,
+      atualizarTalhao,
       removerTalhao,
       removerPropriedade,
     ],
