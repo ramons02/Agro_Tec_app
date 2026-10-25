@@ -7,6 +7,7 @@ import { apiUpload, ApiError } from '../lib/apiClient'
 import { pontosLeafletParaPolygon } from '../lib/geo'
 import { MUNICIPIOS_PARA } from '../lib/municipiosPara'
 import { BuscaDeLocal, type Referencia } from '../components/BuscaDeLocal'
+import { RastroGps } from '../components/RastroGps'
 import { useAppData } from '../store/AppDataContext'
 import type { Talhao } from '../types'
 
@@ -430,6 +431,12 @@ export function CadastroTalhaoPage() {
               }
               onReferencia={setReferencia}
               onAdicionarVertice={adicionarPonto}
+            />
+
+            <RastroGps
+              ultimoVertice={pontos[pontos.length - 1]}
+              onAdicionarVertice={adicionarPonto}
+              onPosicao={setReferencia}
             />
 
             <div className="h-[60dvh] min-h-[18rem] overflow-hidden rounded-lg border border-slate-200 lg:h-[32rem]">
