@@ -1,8 +1,9 @@
 // Validação de layout responsivo (spec 027). Uso:
 //   bun scripts/responsivo/validar.ts --saida <pasta> [--app http://localhost:5173] [--api http://localhost:8080] [--contas contas.json] [--so-publicas]
 // `contas.json` fica fora do repositório: { "ADMIN_MASTER": {"email": "...", "senha": "..."}, "GESTOR_TECNOLOGIA": {...}, "PRODUTOR_RURAL": {...}, "AGRONOMO": {...} }
-// Sem dependência nova: Chrome headless conduzido por CDP (WebSocket do Bun).
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+// O app usa HashRouter: as rotas são `/#/rota`. Sem dependência nova: Chrome headless conduzido por CDP (WebSocket do Bun).
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 
@@ -16,6 +17,8 @@ const API = opt('api', 'http://localhost:8080')!
 const SAIDA = opt('saida', 'saida-responsivo')!
 const ARQUIVO_CONTAS = opt('contas')
 const SO_PUBLICAS = args.includes('--so-publicas')
+const FILTRO_ROTAS = opt('rotas')?.split(',')
+const FILTRO_LARGURAS = opt('larguras')?.split(',')
 
 type Papel = 'ADMIN_MASTER' | 'GESTOR_TECNOLOGIA' | 'PRODUTOR_RURAL' | 'AGRONOMO'
 
@@ -45,9 +48,11 @@ const TELAS_INTERNAS: { rota: string; papeis: Papel[] }[] = [
 class Cdp {
   private id = 0
   private pendentes = new Map<number, (v: any) => void>()
+  eventos: ((m: any) => void)[] = []
   private constructor(private ws: WebSocket) {
     ws.onmessage = (e) => {
       const m = JSON.parse(String(e.data))
+      if (m.method) this.eventos.forEach((f) => f(m))
       if (m.id && this.pendentes.has(m.id)) {
         this.pendentes.get(m.id)!(m)
         this.pendentes.delete(m.id)
@@ -78,8 +83,8 @@ const dorme = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function iniciarChrome() {
   const porta = 9333 + Math.floor(Math.random() * 500)
-  const perfil = join(SAIDA, '.perfil-chrome')
-  mkdirSync(perfil, { recursive: true })
+  // Perfil temporário fora da pasta de saída: o perfil do Chrome tem centenas de MB e guarda localStorage (token de teste).
+  const perfil = mkdtempSync(join(tmpdir(), 'validar-responsivo-'))
   const proc = spawn(
     'google-chrome',
     [`--remote-debugging-port=${porta}`, '--headless=new', '--no-sandbox', '--disable-gpu', `--user-data-dir=${perfil}`, 'about:blank'],
@@ -90,13 +95,14 @@ async function iniciarChrome() {
       const r = await fetch(`http://127.0.0.1:${porta}/json`)
       const abas = (await r.json()) as { type: string; webSocketDebuggerUrl: string }[]
       const aba = abas.find((a) => a.type === 'page')
-      if (aba) return { proc, cdp: await Cdp.conectar(aba.webSocketDebuggerUrl) }
+      if (aba) return { proc, perfil, cdp: await Cdp.conectar(aba.webSocketDebuggerUrl) }
     } catch {
       // Chrome ainda subindo
     }
     await dorme(200)
   }
   proc.kill()
+  rmSync(perfil, { recursive: true, force: true })
   throw new Error('Chrome não subiu')
 }
 
@@ -113,9 +119,18 @@ const MEDIR = `(() => {
   const alvos = [...document.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role=button], [role=tab]')]
     .filter(visivel)
     .filter((el) => !el.closest('.leaflet-tile-pane, .leaflet-attribution-flag'))
+    // Exceções combinadas na spec (FR-014): atribuição legal do mapa e link dentro de uma frase de texto.
+    .filter((el) => !el.closest('.leaflet-control-attribution'))
+    .filter((el) => !(el.tagName === 'A' && el.parentElement && [...el.parentElement.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() !== '')))
     .map((el) => ({ el, r: el.getBoundingClientRect() }))
     .filter(({ r }) => toque && (r.width < 43.5 || r.height < 43.5))
     .map(({ el, r }) => descreve(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height))
+  // O app rola dentro do <main>, não no documento: conteúdo largo demais ali não aparece em scrollWidth do documento.
+  const interna = [...document.querySelectorAll('body *')]
+    .filter((el) => !el.closest('.leaflet-container'))
+    .filter((el) => { const o = getComputedStyle(el).overflowX; return (o === 'auto' || o === 'scroll') && el.scrollWidth > el.clientWidth + 1 })
+    .slice(0, 5)
+    .map((el) => descreve(el) + ' ' + el.scrollWidth + '>' + el.clientWidth)
   const fora = [...document.querySelectorAll('body *')]
     .filter(visivel)
     .filter((el) => getComputedStyle(el).position !== 'fixed' && !el.closest('.leaflet-container, [aria-hidden=true]'))
@@ -123,13 +138,16 @@ const MEDIR = `(() => {
     .slice(0, 5)
     .map((el) => descreve(el))
   return {
-    rota: location.pathname,
+    rota: location.hash.slice(1),
+    texto: document.body.innerText.replace(/\s+/g, ' ').slice(0, 90),
+    token: !!localStorage.getItem('agroclima:token'),
     larguraJanela: vw,
     rolagemHorizontal: document.documentElement.scrollWidth > vw + 1,
     larguraConteudo: document.documentElement.scrollWidth,
     alvosPequenos: alvos.length,
     exemplosAlvos: alvos.slice(0, 5),
     elementosFora: fora,
+    rolagemInterna: interna,
   }
 })()`
 
@@ -141,9 +159,13 @@ type Resultado = {
   larguraConteudo: number
   larguraJanela: number
   rotaFinal: string
+  comToken?: boolean
+  texto?: string
+  chamadasApi?: string[]
   alvosPequenos: number
   exemplosAlvos: string[]
   elementosFora: string[]
+  rolagemInterna: string[]
   captura: string
   erro?: string
 }
@@ -162,7 +184,7 @@ async function login(papel: Papel, conta: { email: string; senha: string }) {
 
 async function main() {
   mkdirSync(SAIDA, { recursive: true })
-  const { proc, cdp } = await iniciarChrome()
+  const { proc, perfil, cdp } = await iniciarChrome()
   const resultados: Resultado[] = []
 
   const contas: Partial<Record<Papel, { email: string; senha: string }>> = ARQUIVO_CONTAS
@@ -171,9 +193,16 @@ async function main() {
 
   await cdp.enviar('Page.enable')
   await cdp.enviar('Runtime.enable')
+  await cdp.enviar('Network.enable')
+  let chamadasApi: string[] = []
+  cdp.eventos.push((m) => {
+    if (m.method === 'Network.responseReceived' && String(m.params.response.url).includes('/api/')) {
+      chamadasApi.push(`${m.params.response.status} ${new URL(m.params.response.url).pathname}`)
+    }
+  })
 
   async function medir(perfil: string, rota: string) {
-    for (const l of LARGURAS) {
+    for (const l of LARGURAS.filter((x) => !FILTRO_LARGURAS || FILTRO_LARGURAS.includes(x.nome))) {
       const movel = l.w < 1024
       await cdp.enviar('Emulation.setDeviceMetricsOverride', {
         width: l.w, height: l.h, deviceScaleFactor: movel ? 2 : 1, mobile: l.w < 768,
@@ -182,7 +211,8 @@ async function main() {
       await cdp.enviar('Emulation.setEmulatedMedia', {
         features: [{ name: 'pointer', value: movel ? 'coarse' : 'fine' }, { name: 'hover', value: movel ? 'none' : 'hover' }],
       })
-      await cdp.enviar('Page.navigate', { url: `${APP}${rota}` })
+      chamadasApi = []
+      await cdp.enviar('Page.navigate', { url: `${APP}/?r=${Date.now()}#${rota}` })
       await dorme(2500)
       const nome = `${perfil}${rota.replace(/\//g, '_')}-${l.nome}.jpg`
       let medida: any
@@ -195,53 +225,61 @@ async function main() {
       } catch (e) {
         erro = String(e)
       }
+      // Tela interna que cai no /login quer dizer sessão inválida (API errada no app, conta recusada): a medida seria do login.
+      const redirecionou = perfil !== 'publico' && medida && medida.rota !== rota
+      if (redirecionou && !erro) erro = `redirecionou para ${medida.rota}: sessão não valeu (o app está usando a mesma API da conta de teste?)`
       resultados.push({
         perfil, tela: rota, largura: l.nome,
         rolagemHorizontal: medida?.rolagemHorizontal ?? false,
         larguraConteudo: medida?.larguraConteudo ?? 0,
         larguraJanela: medida?.larguraJanela ?? l.w,
         rotaFinal: medida?.rota ?? '',
+        comToken: medida?.token,
+        texto: medida?.texto,
+        chamadasApi: [...chamadasApi],
         alvosPequenos: medida?.alvosPequenos ?? 0,
         exemplosAlvos: medida?.exemplosAlvos ?? [],
         elementosFora: medida?.elementosFora ?? [],
+        rolagemInterna: medida?.rolagemInterna ?? [],
         captura: nome, erro,
       })
-      console.log(`${perfil.padEnd(18)} ${rota.padEnd(15)} ${l.nome.padEnd(13)} ->${(medida?.rota ?? '?').padEnd(14)} rolagem=${medida?.rolagemHorizontal ? 'SIM' : 'nao'} alvos<44=${medida?.alvosPequenos ?? '?'}`)
+      console.log(`${perfil.padEnd(18)} ${rota.padEnd(15)} ${l.nome.padEnd(13)} ->${(medida?.rota ?? '?').padEnd(14)} rolagem=${medida?.rolagemHorizontal ? 'SIM' : 'nao'} interna=${medida?.rolagemInterna?.length ?? '?'} alvos<44=${medida?.alvosPequenos ?? '?'}${erro ? '  ERRO: ' + erro.slice(0, 60) : ''}`)
     }
   }
 
   // Telas públicas, sem sessão.
-  await cdp.enviar('Page.navigate', { url: `${APP}/login` })
+  await cdp.enviar('Page.navigate', { url: `${APP}/#/login` })
   await dorme(1500)
   await cdp.enviar('Runtime.evaluate', { expression: 'localStorage.clear(); sessionStorage.clear()' })
-  for (const rota of TELAS_PUBLICAS) await medir('publico', rota)
+  for (const rota of TELAS_PUBLICAS.filter((r) => !FILTRO_ROTAS || FILTRO_ROTAS.includes(r))) await medir('publico', rota)
 
   if (!SO_PUBLICAS) {
     for (const papel of Object.keys(contas) as Papel[]) {
       const sessao = await login(papel, contas[papel]!)
-      await cdp.enviar('Page.navigate', { url: `${APP}/login` })
+      await cdp.enviar('Page.navigate', { url: `${APP}/#/login` })
       await dorme(1000)
       await cdp.enviar('Runtime.evaluate', {
         expression: `localStorage.setItem('agroclima:token', ${JSON.stringify(sessao.token)}); localStorage.setItem('agroclima:papel', ${JSON.stringify(sessao.papel)})`,
       })
-      for (const t of TELAS_INTERNAS.filter((x) => x.papeis.includes(papel))) await medir(papel, t.rota)
+      for (const t of TELAS_INTERNAS.filter((x) => x.papeis.includes(papel) && (!FILTRO_ROTAS || FILTRO_ROTAS.includes(x.rota)))) await medir(papel, t.rota)
     }
   }
 
   cdp.fechar()
   proc.kill()
+  rmSync(perfil, { recursive: true, force: true })
 
   writeFileSync(join(SAIDA, 'relatorio.json'), JSON.stringify(resultados, null, 2))
-  const falhas = resultados.filter((r) => r.rolagemHorizontal || r.alvosPequenos > 0 || r.elementosFora.length > 0 || r.erro)
+  const falhas = resultados.filter((r) => r.rolagemHorizontal || (r.rolagemInterna.length > 0 && r.larguraJanela < 1024) || r.alvosPequenos > 0 || r.elementosFora.length > 0 || r.erro)
   const linhas = [
     '# Relatório de validação responsiva',
     '',
     `Medições: ${resultados.length}. Com falha: ${falhas.length}.`,
     '',
-    '| Perfil | Tela | Largura | Rolagem horizontal | Alvos < 44 px | Fora da janela |',
-    '|---|---|---|---|---|---|',
+    '| Perfil | Tela | Largura | Rolagem horizontal | Rolagem interna | Alvos < 44 px | Fora da janela | Erro |',
+    '|---|---|---|---|---|---|---|---|',
     ...resultados.map(
-      (r) => `| ${r.perfil} | ${r.tela} | ${r.largura} | ${r.rolagemHorizontal ? `SIM (${r.larguraConteudo} > ${r.larguraJanela})` : 'não'} | ${r.alvosPequenos} | ${r.elementosFora.length} |`,
+      (r) => `| ${r.perfil} | ${r.tela} | ${r.largura} | ${r.rolagemHorizontal ? `SIM (${r.larguraConteudo} > ${r.larguraJanela})` : 'não'} | ${r.rolagemInterna.length ? `SIM (${r.rolagemInterna.length})` : 'não'} | ${r.alvosPequenos} | ${r.elementosFora.length} | ${r.erro ? 'SIM' : ''} |`,
     ),
   ]
   writeFileSync(join(SAIDA, 'relatorio.md'), linhas.join('\n') + '\n')
