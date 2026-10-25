@@ -25,6 +25,9 @@ body {
 
 /* Leaflet renderiza os tiles com posicionamento absoluto próprio; sem altura explícita no container pai, o mapa colapsa para 0px. */
 .leaflet-container {
+  /* Os painéis e controles do Leaflet usam z-index de 400 a 1000. Sem isolar, eles vencem a gaveta do menu, o cartão do
+     avatar e os diálogos, que ficam por baixo do mapa. */
+  isolation: isolate;
   width: 100%;
   height: 100%;
   border-radius: 0.75rem;
