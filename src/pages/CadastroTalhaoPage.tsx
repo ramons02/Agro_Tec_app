@@ -1,5 +1,5 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import { MapaDesenhoTalhao } from '../components/MapaDesenhoTalhao'
@@ -71,9 +71,12 @@ function extrairPoligonoDeGeoJSON(json: unknown): [number, number][] | null {
 
 export function CadastroTalhaoPage() {
   const navigate = useNavigate()
-  const { propriedades, talhoes, criarPropriedade, criarTalhao } = useAppData()
+  const { id: talhaoEditandoId } = useParams<{ id: string }>()
+  const { propriedades, talhoes, criarPropriedade, criarTalhao, atualizarTalhao } = useAppData()
+  const editando = talhaoEditandoId !== undefined
+  const talhaoEditado = editando ? talhoes.find((t) => t.id === talhaoEditandoId) : undefined
 
-  const [etapa, setEtapa] = useState<Etapa>('DADOS')
+  const [etapa, setEtapa] = useState<Etapa>(editando ? 'GEOMETRIA' : 'DADOS')
   const [nome, setNome] = useState('')
   const [propriedadeId, setPropriedadeId] = useState<string>(propriedades[0]?.id ?? NOVA_PROPRIEDADE)
   const [buscaPropriedade, setBuscaPropriedade] = useState('')
@@ -91,6 +94,17 @@ export function CadastroTalhaoPage() {
   const [enviando, setEnviando] = useState(false)
 
   const inputArquivoRef = useRef<HTMLInputElement>(null)
+  const edicaoCarregadaRef = useRef(false)
+
+  /** Na edição, o formulário parte do talhão salvo; os talhões podem chegar depois da tela (recarga da página). */
+  useEffect(() => {
+    if (!talhaoEditado || edicaoCarregadaRef.current) return
+    edicaoCarregadaRef.current = true
+    setNome(talhaoEditado.nome)
+    setPropriedadeId(talhaoEditado.propriedadeId)
+    setPontos(removerFechamentoDuplicado(talhaoEditado.poligono))
+    setFocoVersaoImportacao((atual) => atual + 1)
+  }, [talhaoEditado])
 
   const criandoNovaPropriedade = propriedadeId === NOVA_PROPRIEDADE
 
@@ -209,11 +223,10 @@ export function CadastroTalhaoPage() {
     setErroEnvio(null)
     setEtapa('ENVIANDO')
     try {
-      const talhao = await criarTalhao({
-        propriedadeId,
-        nome,
-        geometria: pontosLeafletParaPolygon(pontos),
-      })
+      const geometria = pontosLeafletParaPolygon(pontos)
+      const talhao = talhaoEditandoId
+        ? await atualizarTalhao(talhaoEditandoId, { nome, geometria })
+        : await criarTalhao({ propriedadeId, nome, geometria })
       setTalhaoCriado(talhao)
     } catch (excecao) {
       setErroEnvio(excecao instanceof ApiError ? excecao.message : 'Falha ao cadastrar o talhão.')
@@ -236,13 +249,21 @@ export function CadastroTalhaoPage() {
   return (
     <div className={`mx-auto space-y-6 ${etapa === 'GEOMETRIA' ? 'max-w-4xl' : 'max-w-2xl'}`}>
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Cadastrar Talhão</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          {editando ? 'Editar Talhão' : 'Cadastrar Talhão'}
+        </h1>
         <p className="text-sm text-slate-500">
-          Delimite o talhão e deixe a textura do solo ser preenchida automaticamente.
+          {editando
+            ? 'Ajuste o nome ou importe o arquivo atualizado: área e solo são recalculados ao salvar.'
+            : 'Delimite o talhão e deixe a textura do solo ser preenchida automaticamente.'}
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      {editando && !talhaoEditado && (
+        <p className="text-sm text-slate-400">Carregando talhão…</p>
+      )}
+
+      {!editando && <div className="flex items-center gap-2">
         {ETAPAS.map((e, i) => (
           <div key={e.id} className="flex flex-1 items-center gap-2">
             <div
@@ -261,7 +282,7 @@ export function CadastroTalhaoPage() {
             {i < ETAPAS.length - 1 && <div className="h-px flex-1 bg-slate-200" />}
           </div>
         ))}
-      </div>
+      </div>}
 
       {etapa === 'DADOS' && (
         <Card>
@@ -389,6 +410,17 @@ export function CadastroTalhaoPage() {
               precisa estar inteiramente dentro do estado do Pará.
             </p>
 
+            {editando && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Nome do talhão</label>
+                <input
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                />
+              </div>
+            )}
+
             <div className="h-[60dvh] min-h-[18rem] overflow-hidden rounded-lg border border-slate-200 lg:h-[32rem]">
               <MapaDesenhoTalhao
                 center={centroEZoomDaPropriedade(propriedadeId).centro}
@@ -465,10 +497,10 @@ export function CadastroTalhaoPage() {
                 </Button>
                 <Button
                   className="flex-1"
-                  disabled={pontos.length < 3 || enviando || lendoArquivo || foraDoPara !== null}
+                  disabled={pontos.length < 3 || enviando || lendoArquivo || foraDoPara !== null || nome.trim() === ''}
                   onClick={() => void enviarTalhao()}
                 >
-                  Confirmar geometria
+                  {editando ? 'Salvar alterações' : 'Confirmar geometria'}
                 </Button>
               </div>
             </div>

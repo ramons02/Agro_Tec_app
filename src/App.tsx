@@ -42,6 +42,7 @@ export default function App() {
         <Route path="/mapa" element={<MapaPage />} />
         <Route path="/propriedades" element={<PropriedadesPage />} />
         <Route path="/talhoes/novo" element={<CadastroTalhaoPage />} />
+        <Route path="/talhoes/:id/editar" element={<CadastroTalhaoPage />} />
         <Route path="/pulverizacao" element={<PulverizacaoPage />} />
         <Route path="/plantio" element={<DashboardPlantioPage />} />
         <Route path="/previsao" element={<PrevisaoTempoPage />} />
