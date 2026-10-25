@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import { MapaDesenhoTalhao } from '../components/MapaDesenhoTalhao'
-import { ApiError } from '../lib/apiClient'
+import { apiUpload, ApiError } from '../lib/apiClient'
 import { pontosLeafletParaPolygon } from '../lib/geo'
 import { MUNICIPIOS_PARA } from '../lib/municipiosPara'
 import { useAppData } from '../store/AppDataContext'
@@ -21,6 +21,13 @@ function removerFechamentoDuplicado(pontos: [number, number][]): [number, number
     if (latInicial === latFinal && lngInicial === lngFinal) return pontos.slice(0, -1)
   }
   return pontos
+}
+
+/** Resposta de `POST /talhoes/geometria-de-arquivo`: o polígono lido e se ele está dentro do Pará. */
+interface GeometriaLida {
+  geometria: unknown
+  dentro_do_para: boolean
+  mensagem: string | null
 }
 
 /** Aceita Polygon/MultiPolygon crus, Feature ou FeatureCollection — o suficiente pra
@@ -75,6 +82,10 @@ export function CadastroTalhaoPage() {
   const [pontos, setPontos] = useState<[number, number][]>([])
   const [focoVersaoImportacao, setFocoVersaoImportacao] = useState(0)
   const [erroImportacao, setErroImportacao] = useState<string | null>(null)
+  /** Arquivo lido pelo servidor que cai fora do Pará: o polígono aparece no mapa, mas não pode ser confirmado. */
+  const [foraDoPara, setForaDoPara] = useState<string | null>(null)
+  const [arquivoLido, setArquivoLido] = useState<string | null>(null)
+  const [lendoArquivo, setLendoArquivo] = useState(false)
   const [erroEnvio, setErroEnvio] = useState<string | null>(null)
   const [talhaoCriado, setTalhaoCriado] = useState<Talhao | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -128,53 +139,72 @@ export function CadastroTalhaoPage() {
     setEtapa('GEOMETRIA')
   }
 
+  /** Qualquer edição manual invalida o veredito do arquivo importado: o servidor valida de novo ao confirmar. */
+  function esquecerArquivo() {
+    setForaDoPara(null)
+    setArquivoLido(null)
+  }
+
   function adicionarPonto(ponto: [number, number]) {
     setErroImportacao(null)
+    esquecerArquivo()
     setPontos((atual) => [...atual, ponto])
   }
 
   function desfazerUltimoPonto() {
+    esquecerArquivo()
     setPontos((atual) => atual.slice(0, -1))
   }
 
   function limparPontos() {
     setPontos([])
     setErroImportacao(null)
+    esquecerArquivo()
   }
 
   function acionarSeletorDeArquivo() {
     inputArquivoRef.current?.click()
   }
 
-  function handleArquivoSelecionado(event: ChangeEvent<HTMLInputElement>) {
+  /** O servidor lê GeoJSON, KML e Shapefile (.zip), converte o sistema de coordenadas e diz se o polígono
+   * está dentro do Pará. A tela só desenha o que ele devolve e nunca decide a regra sozinha. */
+  async function handleArquivoSelecionado(event: ChangeEvent<HTMLInputElement>) {
     const arquivo = event.target.files?.[0]
     event.target.value = ''
     if (!arquivo) return
 
-    const leitor = new FileReader()
-    leitor.onload = () => {
-      try {
-        const json = JSON.parse(String(leitor.result))
-        const poligono = extrairPoligonoDeGeoJSON(json)
-        if (!poligono || poligono.length < 3) {
-          setErroImportacao('Não encontrei um polígono válido nesse arquivo GeoJSON.')
-          return
-        }
-        setPontos(removerFechamentoDuplicado(poligono))
-        setFocoVersaoImportacao((atual) => atual + 1)
-        setErroImportacao(null)
-      } catch {
-        setErroImportacao('Arquivo inválido — envie um .geojson bem formado.')
+    setErroImportacao(null)
+    esquecerArquivo()
+    setLendoArquivo(true)
+    try {
+      const formulario = new FormData()
+      formulario.append('arquivo', arquivo)
+      const resposta = await apiUpload<GeometriaLida>('/api/v1/talhoes/geometria-de-arquivo', formulario)
+      const poligono = extrairPoligonoDeGeoJSON(resposta.geometria)
+      if (!poligono || poligono.length < 3) {
+        setErroImportacao('Não encontrei um polígono válido nesse arquivo.')
+        return
       }
+      setPontos(removerFechamentoDuplicado(poligono))
+      setFocoVersaoImportacao((atual) => atual + 1)
+      if (resposta.dentro_do_para) {
+        setArquivoLido(arquivo.name)
+      } else {
+        setForaDoPara(resposta.mensagem ?? 'O talhão precisa estar dentro do estado do Pará.')
+      }
+    } catch (excecao) {
+      setErroImportacao(
+        excecao instanceof ApiError ? excecao.message : 'Não consegui ler esse arquivo. Tente de novo.',
+      )
+    } finally {
+      setLendoArquivo(false)
     }
-    leitor.onerror = () => setErroImportacao('Não consegui ler esse arquivo.')
-    leitor.readAsText(arquivo)
   }
 
-  /** Sobreposição, "fora do Pará" e parametrização de solo são todas validadas e
-   * calculadas no servidor (RN015/RN016, feature 004/005) — o cliente só desenha
+  /** Sobreposição, "fora do Pará" (regra dura, sem confirmação que libere) e parametrização de solo são todas
+   * validadas e calculadas no servidor (RN015/RN016, feature 004/005) — o cliente só desenha
    * e envia a geometria, nunca recalcula essas regras localmente. */
-  async function enviarTalhao(confirmarForaDoPara: boolean) {
+  async function enviarTalhao() {
     setEnviando(true)
     setErroEnvio(null)
     setEtapa('ENVIANDO')
@@ -183,22 +213,9 @@ export function CadastroTalhaoPage() {
         propriedadeId,
         nome,
         geometria: pontosLeafletParaPolygon(pontos),
-        confirmarForaDoPara,
       })
       setTalhaoCriado(talhao)
     } catch (excecao) {
-      if (excecao instanceof ApiError && excecao.codigo === 422) {
-        const detalhes = excecao.detalhes as { tipo?: string } | null
-        if (detalhes?.tipo === 'FORA_DO_PARA') {
-          const confirmado = window.confirm(
-            'Esse talhão parece estar fora do estado do Pará. Confirma o cadastro mesmo assim?',
-          )
-          if (confirmado) {
-            await enviarTalhao(true)
-            return
-          }
-        }
-      }
       setErroEnvio(excecao instanceof ApiError ? excecao.message : 'Falha ao cadastrar o talhão.')
       setEtapa('GEOMETRIA')
     } finally {
@@ -366,8 +383,9 @@ export function CadastroTalhaoPage() {
           </CardHeader>
           <CardBody className="space-y-4">
             <p className="text-xs text-slate-500">
-              Clique no mapa para marcar os vértices do polígono (mínimo 3 pontos), ou
-              importe um GeoJSON já pronto.
+              Clique no mapa para marcar os vértices do polígono (mínimo 3 pontos), ou importe um
+              arquivo pronto: Shapefile (.zip com .shp, .dbf, .shx e .prj), KML ou GeoJSON. O talhão
+              precisa estar inteiramente dentro do estado do Pará.
             </p>
 
             <div className="h-[32rem] overflow-hidden rounded-lg border border-slate-200">
@@ -405,6 +423,21 @@ export function CadastroTalhaoPage() {
               </div>
             </div>
 
+            {lendoArquivo && <p className="text-xs font-medium text-slate-500">Lendo o arquivo…</p>}
+
+            {arquivoLido && (
+              <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+                {arquivoLido}: polígono lido e dentro do Pará. Confira no mapa e confirme.
+              </p>
+            )}
+
+            {foraDoPara && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                {foraDoPara} O polígono aparece no mapa só para você ver onde ele cai; escolha outro arquivo ou
+                desenhe o talhão dentro do estado.
+              </p>
+            )}
+
             {(erroImportacao || erroEnvio) && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
                 {erroImportacao ?? erroEnvio}
@@ -415,17 +448,22 @@ export function CadastroTalhaoPage() {
               <input
                 ref={inputArquivoRef}
                 type="file"
-                accept=".geojson,.json,application/geo+json,application/json"
-                onChange={handleArquivoSelecionado}
+                accept=".zip,.kml,.geojson,.json,application/zip,application/geo+json,application/json,application/vnd.google-earth.kml+xml"
+                onChange={(evento) => void handleArquivoSelecionado(evento)}
                 className="hidden"
               />
-              <Button variant="secondary" className="flex-1" onClick={acionarSeletorDeArquivo}>
-                Importar GeoJSON
+              <Button
+                variant="secondary"
+                className="flex-1"
+                disabled={lendoArquivo || enviando}
+                onClick={acionarSeletorDeArquivo}
+              >
+                Importar arquivo
               </Button>
               <Button
                 className="flex-1"
-                disabled={pontos.length < 3 || enviando}
-                onClick={() => void enviarTalhao(false)}
+                disabled={pontos.length < 3 || enviando || lendoArquivo || foraDoPara !== null}
+                onClick={() => void enviarTalhao()}
               >
                 Confirmar geometria
               </Button>
