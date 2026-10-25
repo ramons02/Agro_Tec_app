@@ -410,7 +410,6 @@ export function CadastroTalhaoPage() {
               precisa estar inteiramente dentro do estado do Pará.
             </p>
 
-
             {editando && (
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">Nome do talhão</label>
@@ -421,7 +420,6 @@ export function CadastroTalhaoPage() {
                 />
               </div>
             )}
-
 
             <div className="h-[60dvh] min-h-[18rem] overflow-hidden rounded-lg border border-slate-200 lg:h-[32rem]">
               <MapaDesenhoTalhao
@@ -499,17 +497,10 @@ export function CadastroTalhaoPage() {
                 </Button>
                 <Button
                   className="flex-1"
-
-                  disabled={pontos.length < 3 || enviando || lendoArquivo || foraDoPara !== null}
-                  onClick={() => void enviarTalhao()}
-           
-                  Confirmar geometria
-
                   disabled={pontos.length < 3 || enviando || lendoArquivo || foraDoPara !== null || nome.trim() === ''}
                   onClick={() => void enviarTalhao()}
-                
+                >
                   {editando ? 'Salvar alterações' : 'Confirmar geometria'}
-
                 </Button>
               </div>
             </div>
