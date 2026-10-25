@@ -6,7 +6,16 @@ import { SenhaTemporariaDialog } from '../components/usuarios/SenhaTemporariaDia
 import { Button } from '../components/ui/Button'
 import { BotaoIcone } from '../components/ui/BotaoIcone'
 import { Card } from '../components/ui/Card'
-import { convidarMaster, criarGrupo, listarGrupos, reatribuirGrupo, type ItemGrupo } from '../lib/acoesGrupos'
+import { CartaoDeLinha } from '../components/ui/CartaoDeLinha'
+import {
+  convidarMaster,
+  criarGrupo,
+  excluirGrupo,
+  listarGrupos,
+  reatribuirGrupo,
+  renomearGrupo,
+  type ItemGrupo,
+} from '../lib/acoesGrupos'
 import { ApiError } from '../lib/apiClient'
 import { ehMaster } from '../lib/papeis'
 import { useAuth } from '../store/AuthContext'
@@ -35,6 +44,8 @@ function PainelGrupos() {
   const [reatribuindo, setReatribuindo] = useState<ItemGrupo | null>(null)
   const [convidando, setConvidando] = useState(false)
   const [gerandoLink, setGerandoLink] = useState<ItemGrupo | null>(null)
+  const [editando, setEditando] = useState<ItemGrupo | null>(null)
+  const [excluindo, setExcluindo] = useState<ItemGrupo | null>(null)
   const [executando, setExecutando] = useState(false)
   const [erroDialogo, setErroDialogo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -68,6 +79,44 @@ function PainelGrupos() {
     }
   }
 
+  /** Os mesmos quatro botões na tabela (a partir de 768 px) e no cartão (celular). */
+  function acoesDoGrupo(g: ItemGrupo) {
+    const semDestino = (grupos?.length ?? 0) < 2
+    return (
+      <>
+        <BotaoIcone rotulo="Link de cadastro" onClick={() => setGerandoLink(g)}>
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </BotaoIcone>
+        <BotaoIcone
+          rotulo="Passar para outro Admin"
+          disabled={semDestino}
+          title={semDestino ? 'É preciso ter outro grupo de destino.' : 'Passar para outro Admin'}
+          onClick={() => { setErroDialogo(null); setReatribuindo(g) }}
+        >
+          <path d="m17 3 4 4-4 4" />
+          <path d="M3 7h18" />
+          <path d="m7 21-4-4 4-4" />
+          <path d="M21 17H3" />
+        </BotaoIcone>
+        <BotaoIcone rotulo="Editar grupo" onClick={() => { setErroDialogo(null); setEditando(g) }}>
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </BotaoIcone>
+        <BotaoIcone
+          rotulo="Excluir grupo"
+          perigo
+          onClick={() => { setErroDialogo(null); setExcluindo(g) }}
+        >
+          <path d="M3 6h18" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <path d="M10 11v6M14 11v6" />
+        </BotaoIcone>
+      </>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -90,7 +139,21 @@ function PainelGrupos() {
       {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
       <Card>
-        <div className="overflow-x-auto">
+        <ul className="space-y-3 p-4 md:hidden">
+          {grupos?.map((g) => (
+            <CartaoDeLinha
+              key={g.id}
+              titulo={g.nome}
+              subtitulo={g.admin ? `${g.admin.nome ?? '-'} · ${g.admin.email}` : undefined}
+              campos={[
+                { rotulo: 'Contas', valor: g.usuarios },
+                { rotulo: 'Criado em', valor: formatarData(g.criadoEm) },
+              ]}
+              acoes={<div className="flex w-full justify-end">{acoesDoGrupo(g)}</div>}
+            />
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
               <tr>
@@ -111,23 +174,7 @@ function PainelGrupos() {
                   <td className="px-5 py-3 text-right text-slate-700">{g.usuarios}</td>
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(g.criadoEm)}</td>
                   <td className="px-5 py-3 text-right">
-                    <BotaoIcone rotulo="Link de cadastro" onClick={() => setGerandoLink(g)}>
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                    </BotaoIcone>
-                    <BotaoIcone
-                      rotulo="Passar para outro Admin"
-                      disabled={(grupos?.length ?? 0) < 2}
-                      title={
-                        (grupos?.length ?? 0) < 2 ? 'É preciso ter outro grupo de destino.' : 'Passar para outro Admin'
-                      }
-                      onClick={() => { setErroDialogo(null); setReatribuindo(g) }}
-                    >
-                      <path d="m17 3 4 4-4 4" />
-                      <path d="M3 7h18" />
-                      <path d="m7 21-4-4 4-4" />
-                      <path d="M21 17H3" />
-                    </BotaoIcone>
+                    {acoesDoGrupo(g)}
                   </td>
                 </tr>
               ))}
@@ -167,6 +214,45 @@ function PainelGrupos() {
             })
           }
         />
+      )}
+
+      {editando && (
+        <EditarGrupoDialog
+          grupo={editando}
+          executando={executando}
+          erro={erroDialogo}
+          onCancelar={() => setEditando(null)}
+          onSalvar={(nome) =>
+            void executar(async () => {
+              await renomearGrupo(editando.id, nome)
+              setEditando(null)
+              setAviso(`Grupo renomeado para ${nome}.`)
+            })
+          }
+        />
+      )}
+
+      {excluindo && (
+        <ConfirmacaoDialog
+          titulo="Excluir grupo"
+          rotuloConfirmar="Excluir"
+          perigosa
+          executando={executando}
+          onCancelar={() => setExcluindo(null)}
+          onConfirmar={() =>
+            void executar(async () => {
+              await excluirGrupo(excluindo.id)
+              setExcluindo(null)
+              setAviso(`Grupo ${excluindo.nome} excluído.`)
+            })
+          }
+        >
+          <p>
+            Excluir o grupo <strong>{excluindo.nome}</strong>? Só é possível se ele não tiver contas nem propriedades:
+            passe-as para outro Admin antes. O Admin do grupo fica sem grupo e é suspenso.
+          </p>
+          {erroDialogo && <p className="rounded-lg bg-red-50 px-3 py-2 text-red-700">{erroDialogo}</p>}
+        </ConfirmacaoDialog>
       )}
 
       {convidando && (
@@ -291,6 +377,45 @@ function ReatribuirDialog({
           </option>
         ))}
       </select>
+      {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-red-700">{erro}</p>}
+    </ConfirmacaoDialog>
+  )
+}
+
+function EditarGrupoDialog({
+  grupo,
+  executando,
+  erro,
+  onCancelar,
+  onSalvar,
+}: {
+  grupo: ItemGrupo
+  executando: boolean
+  erro: string | null
+  onCancelar: () => void
+  onSalvar: (nome: string) => void
+}) {
+  const [nome, setNome] = useState(grupo.nome)
+  const alterado = nome.trim() !== '' && nome.trim() !== grupo.nome
+
+  return (
+    <ConfirmacaoDialog
+      titulo="Editar grupo"
+      rotuloConfirmar="Salvar"
+      executando={executando}
+      confirmarDesabilitado={!alterado}
+      onCancelar={onCancelar}
+      onConfirmar={() => onSalvar(nome.trim())}
+    >
+      <label className="block text-sm font-medium text-slate-700">
+        Nome do grupo
+        <input
+          value={nome}
+          maxLength={120}
+          onChange={(e) => setNome(e.target.value)}
+          className={`${CAMPO} mt-1.5`}
+        />
+      </label>
       {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-red-700">{erro}</p>}
     </ConfirmacaoDialog>
   )
