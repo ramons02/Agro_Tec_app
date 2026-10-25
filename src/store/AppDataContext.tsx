@@ -48,7 +48,6 @@ interface CriarTalhaoInput {
   propriedadeId: string
   nome: string
   geometria: GeometriaGeoJSON
-  confirmarForaDoPara?: boolean
 }
 
 interface AppDataContextValue {
@@ -149,7 +148,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       propriedade_id: input.propriedadeId,
       nome: input.nome,
       geometria: input.geometria,
-      confirmar_fora_do_para: input.confirmarForaDoPara ?? false,
     }
     const dados = await executarOuEnfileirar('POST', '/api/v1/talhoes', corpo, () =>
       apiPost<TalhaoApiShape>('/api/v1/talhoes', corpo),
