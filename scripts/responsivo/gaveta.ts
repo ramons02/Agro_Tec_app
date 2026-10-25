@@ -84,6 +84,18 @@ for (const papel of Object.keys(contas) as Papel[]) {
     const itens = await ev<string[]>(JS.itens)
     confere(JSON.stringify(itens) === JSON.stringify(ITENS[papel]), `${rotulo}: itens do menu do perfil (${itens.length}) = esperados (${ITENS[papel].length})`)
 
+    // O mapa (Leaflet usa z-index de 400 a 1000) não pode ficar por cima da gaveta. `elementFromPoint` não serve para
+    // isso (a pintura e o teste de acerto divergiram no Chrome), então olha o pixel da captura: sobre a gaveta aberta,
+    // ao lado do mapa, a cor tem de ser o branco do menu, nunca a imagem de satélite.
+    if (await ev<boolean>(`!!document.querySelector('.leaflet-container')`)) {
+      const y = Math.round(h * 0.6)
+      const foto = await cdp.enviar('Page.captureScreenshot', { format: 'png', clip: { x: 100, y, width: 40, height: 20, scale: 1 } })
+      const media = await ev<number[]>(
+        `new Promise((ok) => { const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const x = c.getContext('2d'); x.drawImage(i, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let r = 0, g = 0, b = 0, n = 0; for (let k = 0; k < d.length; k += 4) { r += d[k]; g += d[k + 1]; b += d[k + 2]; n++ } ok([Math.round(r / n), Math.round(g / n), Math.round(b / n)]) }; i.src = 'data:image/png;base64,${foto.data}' })`,
+      )
+      confere(media.every((c) => c >= 245), `${rotulo}: gaveta fica por cima do mapa (cor sob a gaveta: rgb(${media.join(', ')}))`)
+    }
+
     await toque(w - 10, h / 2) // toque fora da gaveta (que tem no máximo 256 px)
     confere(!(await ev<boolean>(JS.noEcra)), `${rotulo}: toque fora fecha`)
 
