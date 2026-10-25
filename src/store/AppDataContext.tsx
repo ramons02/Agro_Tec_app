@@ -136,13 +136,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const criarPropriedade = useCallback(async (nome: string, municipio: string) => {
     const corpo = { nome, municipio }
-    const dados = await executarOuEnfileirar('POST', '/api/v1/propriedades', corpo, () =>
-      apiPost<PropriedadeApiShape>('/api/v1/propriedades', corpo),
+    const idLocal = `local-${Date.now()}`
+    const dados = await executarOuEnfileirar(
+      'POST',
+      '/api/v1/propriedades',
+      corpo,
+      () => apiPost<PropriedadeApiShape>('/api/v1/propriedades', corpo),
+      idLocal,
     )
     if (dados === null) {
       // Sem rede: placeholder local otimista, substituído quando a fila sincronizar.
       const propriedade: Propriedade = {
-        id: `local-${Date.now()}`,
+        id: idLocal,
         nome,
         municipio,
         proprietarioId: 'local',
@@ -162,15 +167,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       nome: input.nome,
       geometria: input.geometria,
     }
-    const dados = await executarOuEnfileirar('POST', '/api/v1/talhoes', corpo, () =>
-      apiPost<TalhaoApiShape>('/api/v1/talhoes', corpo),
+    const idLocal = `local-${Date.now()}`
+    const dados = await executarOuEnfileirar(
+      'POST',
+      '/api/v1/talhoes',
+      corpo,
+      () => apiPost<TalhaoApiShape>('/api/v1/talhoes', corpo),
+      idLocal,
     )
     if (dados === null) {
       // Sem rede: área calculada localmente (turf) só pra exibição até sincronizar --
       // o valor definitivo (PostGIS ST_Area) vem no recarregar() pós-sincronização.
       const poligono = primeiroAnelParaLeaflet(input.geometria)
       const talhao: Talhao = {
-        id: `local-${Date.now()}`,
+        id: idLocal,
         propriedadeId: input.propriedadeId,
         nome: input.nome,
         geometria: input.geometria,

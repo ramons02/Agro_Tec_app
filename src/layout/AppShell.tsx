@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { AvisoDeRecusadas } from '../components/AvisoDeRecusadas'
 import { MenuUsuario } from '../components/MenuUsuario'
 import { Gaveta } from './Gaveta'
 import { aoMudarFila, contarAcoesPendentes, iniciarSincronizacaoAutomatica } from '../lib/filaSincronizacao'
@@ -169,6 +170,7 @@ export function AppShell() {
         </header>
 
         <main className="flex-1 overflow-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6">
+          <AvisoDeRecusadas />
           <Outlet />
         </main>
       </div>
