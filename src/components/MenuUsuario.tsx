@@ -26,6 +26,17 @@ function formatarData(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+/** Primeira letra do primeiro nome + primeira do último ("Ramon Silva" -> "RS"); nome de uma palavra só usa as duas primeiras letras. */
+function iniciaisDoNome(nome: string): string {
+  const partes = nome.trim().split(/\s+/).filter(Boolean)
+  if (partes.length === 0) return ''
+  const letras = (texto: string) => Array.from(texto)
+  const primeira = letras(partes[0])
+  const resultado =
+    partes.length === 1 ? primeira.slice(0, 2).join('') : primeira[0] + letras(partes[partes.length - 1])[0]
+  return resultado.toLocaleUpperCase('pt-BR')
+}
+
 const STATUS_ROTULO: Record<string, string> = { ATIVA: 'Ativa', PENDENTE: 'Pendente', SUSPENSA: 'Suspensa' }
 
 /** Avatar do topo: ao clicar abre um cartão com os dados da conta logada (carregados da API na hora). */
@@ -36,8 +47,9 @@ export function MenuUsuario({ iniciais, rotuloPapel, podeTrocarSenha, onTrocarSe
   const [carregando, setCarregando] = useState(false)
   const raiz = useRef<HTMLDivElement>(null)
 
+  // Carrega ao montar (as iniciais do avatar vêm do nome) e de novo a cada abertura do cartão, para refletir
+  // uma edição de nome feita pelo administrador.
   useEffect(() => {
-    if (!aberto) return
     let cancelado = false
     setCarregando(true)
     setErro(null)
@@ -55,6 +67,9 @@ export function MenuUsuario({ iniciais, rotuloPapel, podeTrocarSenha, onTrocarSe
       cancelado = true
     }
   }, [aberto])
+
+  // Até o nome chegar (ou se a consulta falhar) vale a sigla do perfil que o layout já conhece.
+  const iniciaisDaPessoa = (perfil && iniciaisDoNome(perfil.nome)) || iniciais
 
   useEffect(() => {
     if (!aberto) return
@@ -82,7 +97,7 @@ export function MenuUsuario({ iniciais, rotuloPapel, podeTrocarSenha, onTrocarSe
         aria-label="Meus dados"
         className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700 outline-none ring-emerald-500 transition hover:bg-emerald-200 focus-visible:ring-2"
       >
-        {iniciais}
+        {iniciaisDaPessoa}
       </button>
 
       {aberto && (
@@ -98,7 +113,7 @@ export function MenuUsuario({ iniciais, rotuloPapel, podeTrocarSenha, onTrocarSe
             <>
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-base font-semibold text-emerald-700">
-                  {iniciais}
+                  {iniciaisDaPessoa}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900">{perfil.nome}</p>
