@@ -28,7 +28,7 @@ export function PainelTalhao({ talhao }: PainelTalhaoProps) {
   )
 
   return (
-    <Card className="flex h-full flex-col overflow-hidden">
+    <Card className="flex flex-col overflow-hidden lg:h-full">
       <CardHeader className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-slate-900">{talhao.nome}</p>
@@ -37,7 +37,7 @@ export function PainelTalhao({ talhao }: PainelTalhaoProps) {
         {talhao.statusPlantio && <BadgeStatusPlantio status={talhao.statusPlantio} />}
       </CardHeader>
 
-      <CardBody className="flex-1 space-y-5 overflow-auto">
+      <CardBody className="flex-1 space-y-5 lg:overflow-auto">
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
             O que fazer agora

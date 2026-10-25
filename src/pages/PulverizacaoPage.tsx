@@ -44,7 +44,7 @@ export function PulverizacaoPage() {
         <p className="text-sm text-slate-400">Nenhum talhão cadastrado ainda.</p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {talhoes.map((talhao) => (
           <CardPulverizacaoTalhao key={talhao.id} talhao={talhao} />
         ))}

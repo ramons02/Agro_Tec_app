@@ -16,6 +16,8 @@ const API = opt('api', 'http://localhost:8080')!
 const SAIDA = opt('saida', 'saida-responsivo')!
 const ARQUIVO_CONTAS = opt('contas')
 const SO_PUBLICAS = args.includes('--so-publicas')
+// --extras: acrescenta a largura de zoom de 200% (1280 px ampliados = 640 px) e a passada com a rede offline no mapa (FR-006 e FR-015).
+const EXTRAS = args.includes('--extras')
 const FILTRO_ROTAS = opt('rotas')?.split(',')
 const FILTRO_LARGURAS = opt('larguras')?.split(',')
 
@@ -28,6 +30,8 @@ const LARGURAS = [
   { nome: '1024', w: 1024, h: 768 },
   { nome: '1440', w: 1440, h: 900 },
 ]
+
+const LARGURAS_EXTRAS = [{ nome: '640-zoom200', w: 640, h: 450 }]
 
 const TELAS_PUBLICAS = ['/login', '/cadastro', '/esqueci-senha', '/redefinir-senha', '/trocar-senha']
 const TELAS_INTERNAS: { rota: string; papeis: Papel[] }[] = [
@@ -91,6 +95,23 @@ const MEDIR = `(() => {
   }
 })()`
 
+// Roda dentro da página na passada offline: o indicador está no cabeçalho e não pode cobrir o menu nem o avatar.
+const MEDIR_OFFLINE = `(() => {
+  const cab = document.querySelector('header')
+  const ind = [...document.querySelectorAll('header span')].find((s) => /offline/i.test(s.textContent || ''))
+  const menu = document.querySelector('button[aria-controls="menu-principal"]')
+  const avatar = document.querySelector('button[aria-label="Meus dados"]')
+  const caixa = (el) => (el ? el.getBoundingClientRect() : null)
+  const cruza = (a, b) => !!a && !!b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+  const i = caixa(ind)
+  return {
+    indicador: !!ind && !!i && i.width > 0,
+    cabe: !!i && i.left >= 0 && i.right <= document.documentElement.clientWidth,
+    sobrepoe: cruza(i, caixa(menu)) || cruza(i, caixa(avatar)),
+    cabecalhoRola: !!cab && cab.scrollWidth > cab.clientWidth + 1,
+  }
+})()`
+
 type Resultado = {
   perfil: string
   tela: string
@@ -130,7 +151,7 @@ async function main() {
   })
 
   async function medir(perfil: string, rota: string) {
-    for (const l of LARGURAS.filter((x) => !FILTRO_LARGURAS || FILTRO_LARGURAS.includes(x.nome))) {
+    for (const l of [...LARGURAS, ...(EXTRAS ? LARGURAS_EXTRAS : [])].filter((x) => !FILTRO_LARGURAS || FILTRO_LARGURAS.includes(x.nome))) {
       const movel = l.w < 1024
       await cdp.enviar('Emulation.setDeviceMetricsOverride', {
         width: l.w, height: l.h, deviceScaleFactor: movel ? 2 : 1, mobile: l.w < 768,
@@ -174,6 +195,32 @@ async function main() {
       console.log(`${perfil.padEnd(18)} ${rota.padEnd(15)} ${l.nome.padEnd(13)} ->${(medida?.rota ?? '?').padEnd(14)} rolagem=${medida?.rolagemHorizontal ? 'SIM' : 'nao'} interna=${medida?.rolagemInterna?.length ?? '?'} alvos<44=${medida?.alvosPequenos ?? '?'}${erro ? '  ERRO: ' + erro.slice(0, 60) : ''}`)
       const detalhe = [...(medida?.elementosFora ?? []).map((x: string) => 'fora: ' + x), ...(medida?.rolagemInterna ?? []).map((x: string) => 'interna: ' + x), ...(medida?.exemplosAlvos ?? []).slice(0, 2).map((x: string) => 'alvo: ' + x)]
       if (detalhe.length) console.log('    ' + detalhe.slice(0, 3).join(' | '))
+    }
+
+    // Passada offline (FR-006): com a rede caída o indicador de modo offline aparece no cabeçalho e cabe sem cobrir o botão
+    // do menu nem o avatar. Só no mapa e só nos celulares, onde o cabeçalho é mais apertado.
+    if (EXTRAS && perfil !== 'publico' && rota === '/mapa') {
+      for (const l of LARGURAS.filter((x) => (x.nome === '320' || x.nome === '360') && (!FILTRO_LARGURAS || FILTRO_LARGURAS.includes(x.nome)))) {
+        await cdp.enviar('Emulation.setDeviceMetricsOverride', { width: l.w, height: l.h, deviceScaleFactor: 2, mobile: true })
+        await cdp.enviar('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 })
+        await cdp.enviar('Page.navigate', { url: `${APP}/?r=${Date.now()}#${rota}` })
+        await dorme(2500)
+        await cdp.enviar('Network.enable')
+        await cdp.enviar('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
+        await dorme(800)
+        const r = await cdp.enviar('Runtime.evaluate', { expression: MEDIR_OFFLINE, returnByValue: true })
+        const o = r.result.value as { indicador: boolean; cabe: boolean; sobrepoe: boolean; cabecalhoRola: boolean }
+        const nome = `${perfil}${rota.replace(/\//g, '_')}-${l.nome}-offline.jpg`
+        const shot = await cdp.enviar('Page.captureScreenshot', { format: 'jpeg', quality: 70 })
+        writeFileSync(join(SAIDA, nome), Buffer.from(shot.data, 'base64'))
+        await cdp.enviar('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
+        const problema = !o.indicador ? 'indicador de modo offline não apareceu' : !o.cabe ? 'indicador passa da borda da tela' : o.sobrepoe ? 'indicador cobre o botão do menu ou o avatar' : o.cabecalhoRola ? 'cabeçalho passa da largura' : undefined
+        resultados.push({
+          perfil, tela: rota, largura: `${l.nome}-offline`, rolagemHorizontal: false, larguraConteudo: l.w, larguraJanela: l.w,
+          rotaFinal: rota, alvosPequenos: 0, exemplosAlvos: [], elementosFora: [], rolagemInterna: [], captura: nome, erro: problema,
+        } as Resultado)
+        console.log(`${perfil.padEnd(18)} ${rota.padEnd(15)} ${(l.nome + '-offline').padEnd(13)} indicador=${o.indicador ? 'sim' : 'NAO'} cabe=${o.cabe ? 'sim' : 'NAO'}${problema ? '  ERRO: ' + problema : ''}`)
+      }
     }
   }
 
