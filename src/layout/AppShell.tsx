@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { MenuUsuario } from '../components/MenuUsuario'
 import { aoMudarFila, contarAcoesPendentes, iniciarSincronizacaoAutomatica } from '../lib/filaSincronizacao'
 import { ehGestor as papelEhGestor, ehMaster } from '../lib/papeis'
 import { useAuth } from '../store/AuthContext'
@@ -156,9 +157,13 @@ export function AppShell() {
             <span className="hidden text-xs font-medium text-slate-500 sm:inline">
               {papel ? PAPEL_LABEL[papel] : ''}
             </span>
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-              {papel ? PAPEL_INICIAIS[papel] : '?'}
-            </div>
+            <MenuUsuario
+              iniciais={papel ? PAPEL_INICIAIS[papel] : '?'}
+              rotuloPapel={papel ? PAPEL_LABEL[papel] : ''}
+              podeTrocarSenha={ehGestor}
+              onTrocarSenha={() => navigate('/trocar-senha')}
+              onSair={handleSair}
+            />
           </div>
         </header>
 
