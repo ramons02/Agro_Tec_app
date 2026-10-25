@@ -118,25 +118,6 @@ export function AppShell() {
           ))}
         </nav>
 
-        <div className="space-y-1 border-t border-slate-100 p-3">
-          {/* Só o gestor troca a própria senha quando quiser; produtor e agrônomo pedem ao administrador. */}
-          {ehGestor && (
-            <button
-              onClick={() => navigate('/trocar-senha')}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-            >
-              <KeyIcon className="h-4 w-4" />
-              Trocar minha senha
-            </button>
-          )}
-          <button
-            onClick={handleSair}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-          >
-            <LogoutIcon className="h-4 w-4" />
-            Sair
-          </button>
-        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -246,20 +227,4 @@ function UsersIcon({ className }: IconProps) {
   )
 }
 
-function KeyIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
-      <circle cx="8" cy="15" r="4" />
-      <path d="m11 12 9-9m-3 3 3 3m-6-0 2 2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 
-function LogoutIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
-      <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3" strokeLinecap="round" />
-      <path d="M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
