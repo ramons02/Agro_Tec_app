@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ativarAvisos, desativarAvisos, estadoDosAvisos, type EstadoAvisos } from '../lib/push'
 import {
   listarAlertas,
   marcarAlertaLido,
@@ -18,6 +19,9 @@ export function SinoDeAlertas() {
   const [lista, setLista] = useState<ListaDeAlertas>({ naoLidos: 0, itens: [] })
   const [aberto, setAberto] = useState(false)
   const raiz = useRef<HTMLDivElement>(null)
+  const [avisos, setAvisos] = useState<EstadoAvisos>('nao-suportado')
+  const [trocandoAvisos, setTrocandoAvisos] = useState(false)
+  const [erroAvisos, setErroAvisos] = useState<string | null>(null)
 
   const carregar = useCallback(() => {
     // Sem rede ou com erro, fica o que já estava na tela: alerta velho é melhor que tela quebrada.
@@ -44,6 +48,7 @@ export function SinoDeAlertas() {
   useEffect(() => {
     if (!aberto) return
     carregar()
+    void estadoDosAvisos().then(setAvisos)
     function aoClicarFora(evento: MouseEvent) {
       if (raiz.current && !raiz.current.contains(evento.target as Node)) setAberto(false)
     }
@@ -73,6 +78,20 @@ export function SinoDeAlertas() {
   function lerTodos() {
     setLista((atual) => ({ naoLidos: 0, itens: atual.itens.map((a) => ({ ...a, lido: true })) }))
     void marcarTodosLidos().catch(() => carregar())
+  }
+
+  async function trocarAvisos() {
+    setTrocandoAvisos(true)
+    setErroAvisos(null)
+    try {
+      if (avisos === 'ativo') await desativarAvisos()
+      else await ativarAvisos()
+    } catch (e) {
+      setErroAvisos(e instanceof Error ? e.message : 'Não consegui trocar os avisos do celular.')
+    } finally {
+      setAvisos(await estadoDosAvisos())
+      setTrocandoAvisos(false)
+    }
   }
 
   const rotulo =
@@ -128,6 +147,31 @@ export function SinoDeAlertas() {
               </button>
             )}
           </div>
+
+          {avisos !== 'nao-suportado' && (
+            <div className="space-y-1 border-b border-slate-100 px-4 py-3 text-xs text-slate-600">
+              {avisos === 'precisa-instalar' && (
+                <p>No iPhone, instale o app na tela inicial (Compartilhar, depois Adicionar à Tela de Início) para receber avisos com ele fechado.</p>
+              )}
+              {avisos === 'bloqueado' && (
+                <p>As notificações estão bloqueadas neste aparelho. Libere nas configurações do navegador para receber avisos com o app fechado.</p>
+              )}
+              {(avisos === 'inativo' || avisos === 'ativo') && (
+                <div className="flex items-center justify-between gap-3">
+                  <p>{avisos === 'ativo' ? 'Avisos no celular ligados, mesmo com o app fechado.' : 'Receber avisos no celular, mesmo com o app fechado.'}</p>
+                  <button
+                    type="button"
+                    disabled={trocandoAvisos}
+                    onClick={() => void trocarAvisos()}
+                    className="min-h-11 shrink-0 rounded-lg border border-slate-300 px-3 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    {avisos === 'ativo' ? 'Desligar' : 'Ligar'}
+                  </button>
+                </div>
+              )}
+              {erroAvisos && <p className="text-red-700">{erroAvisos}</p>}
+            </div>
+          )}
 
           {lista.itens.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-400">

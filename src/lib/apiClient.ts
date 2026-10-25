@@ -62,8 +62,8 @@ async function tratarResposta<T>(resposta: Response): Promise<T> {
   return (corpo as EnvelopeSucesso<T>).dados
 }
 
-function cabecalhos(comCorpo: boolean): HeadersInit {
-  const token = obterToken()
+function cabecalhos(comCorpo: boolean, tokenFixo?: string | null): HeadersInit {
+  const token = tokenFixo !== undefined ? tokenFixo : obterToken()
   return {
     ...(comCorpo ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -75,10 +75,11 @@ export async function apiGet<T>(caminho: string): Promise<T> {
   return tratarResposta<T>(resposta)
 }
 
-export async function apiPost<T>(caminho: string, corpo?: unknown): Promise<T> {
+/** `tokenFixo`: usa este token em vez do da sessão (para uma chamada que roda depois de a sessão ser encerrada). */
+export async function apiPost<T>(caminho: string, corpo?: unknown, tokenFixo?: string | null): Promise<T> {
   const resposta = await fetch(`${BASE_URL}${caminho}`, {
     method: 'POST',
-    headers: cabecalhos(true),
+    headers: cabecalhos(true, tokenFixo),
     body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
   })
   return tratarResposta<T>(resposta)
