@@ -86,7 +86,7 @@ type Acao =
   | { tipo: 'detalhe'; usuario: UsuarioListado }
 
 function formatarData(iso: string | null): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 }
 
@@ -359,7 +359,7 @@ function PainelUsuarios() {
                       className="text-left hover:text-emerald-700 hover:underline"
                       title="Ver o histórico desta conta"
                     >
-                      {u.nome ?? '—'}
+                      {u.nome ?? '-'}
                     </button>
                   </td>
                   <td className="px-5 py-3 text-slate-600">{u.email}</td>
@@ -373,8 +373,8 @@ function PainelUsuarios() {
                   {souMaster && (
                     <td className="px-5 py-3 text-slate-600">
                       {u.papel === 'AGRONOMO'
-                        ? u.grupos.map((g) => g.nome).join(', ') || '—'
-                        : (u.grupo?.nome ?? '—')}
+                        ? u.grupos.map((g) => g.nome).join(', ') || '-'
+                        : (u.grupo?.nome ?? '-')}
                     </td>
                   )}
                   <td className="px-5 py-3">
@@ -393,7 +393,7 @@ function PainelUsuarios() {
                     )}
                   </td>
                   <td className="px-5 py-3 text-right text-slate-700">{u.propriedades}</td>
-                  <td className="px-5 py-3 text-slate-600">{u.telegramVinculado ? 'Vinculado' : '—'}</td>
+                  <td className="px-5 py-3 text-slate-600">{u.telegramVinculado ? 'Vinculado' : '-'}</td>
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(u.criadoEm)}</td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex flex-wrap justify-end gap-2">

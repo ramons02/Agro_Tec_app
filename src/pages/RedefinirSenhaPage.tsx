@@ -48,7 +48,7 @@ export function RedefinirSenhaPage() {
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           {!token ? (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              Link inválido — faltou o token de redefinição. Solicite um novo link.
+              Link inválido: faltou o token de redefinição. Solicite um novo link.
             </p>
           ) : concluido ? (
             <>

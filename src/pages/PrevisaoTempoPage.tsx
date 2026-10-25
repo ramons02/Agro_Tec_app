@@ -28,9 +28,9 @@ function FocoCidade({ posicao }: { posicao: [number, number] }) {
   return null
 }
 
-/** Valor ausente aparece como "—", nunca como 0 (FR-009): zero de chuva ou de vento seria dado inventado. */
+/** Valor ausente aparece como "-", nunca como 0 (FR-009): zero de chuva ou de vento seria dado inventado. */
 function numero(valor: number | null, casas = 0) {
-  return valor == null ? '—' : valor.toFixed(casas)
+  return valor == null ? '-' : valor.toFixed(casas)
 }
 
 function formatarDia(data: string) {

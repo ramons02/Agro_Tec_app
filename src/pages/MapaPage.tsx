@@ -46,7 +46,7 @@ export function MapaPage() {
         <p className="text-sm text-slate-400">
           {todosOsTalhoes.length > 0
             ? 'Nenhum talhão neste grupo.'
-            : 'Nenhum talhão cadastrado ainda — cadastre um para ver o mapa.'}
+            : 'Nenhum talhão cadastrado ainda. Cadastre um para ver o mapa.'}
         </p>
       </div>
     )
