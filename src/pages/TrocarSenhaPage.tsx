@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
+import { CampoSenha } from '../components/ui/CampoSenha'
 import { ApiError } from '../lib/apiClient'
 import { ehGestor } from '../lib/papeis'
 import { useAuth } from '../store/AuthContext'
@@ -77,38 +78,32 @@ export function TrocarSenhaPage() {
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
               {precisaTrocarSenha ? 'Senha temporária' : 'Senha atual'}
             </label>
-            <input
-              type="password"
+            <CampoSenha
               required
               autoComplete="current-password"
               value={senhaAtual}
               onChange={(e) => setSenhaAtual(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Senha nova</label>
-            <input
-              type="password"
+            <CampoSenha
               required
               autoComplete="new-password"
               value={senhaNova}
               onChange={(e) => setSenhaNova(e.target.value)}
               placeholder={`Mínimo ${SENHA_MINIMA} caracteres`}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Repita a senha nova</label>
-            <input
-              type="password"
+            <CampoSenha
               required
               autoComplete="new-password"
               value={confirmacao}
               onChange={(e) => setConfirmacao(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
 

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
+import { CampoSenha } from '../components/ui/CampoSenha'
 import { apiPost, ApiError } from '../lib/apiClient'
 
 export function RedefinirSenhaPage() {
@@ -60,13 +61,11 @@ export function RedefinirSenhaPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">Nova senha</label>
-                <input
-                  type="password"
+                <CampoSenha
                   required
                   value={novaSenha}
                   onChange={(e) => setNovaSenha(e.target.value)}
                   placeholder="Mínimo 8 caracteres"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
               {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
