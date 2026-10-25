@@ -201,9 +201,16 @@ export interface BalancoHidricoResultado {
   evapotranspiracaoMm: number
 }
 
-/** Umidade/capacidade de campo por profundidade não têm sensor na API — só
- * essas duas estimativas continuam simuladas (marcadas "(simulado)" na tela). */
-export interface EnriquecimentoSimulado {
-  umidadeSolo0_7cm: number
-  capacidadeCampo: number
+/** Solo do talhão vindo da API: textura e CAD do SoilGrids e umidade do modelo do Open-Meteo.
+ * O que a API não tem vem nulo; a tela mostra "sem dado", nunca um número inventado. */
+export interface SoloTalhao {
+  tipoSolo: TipoSolo | null
+  capacidadeAguaDisponivelMm: number | null
+  /** Capacidade de campo calculada da textura real, em %. */
+  capacidadeCampoPct: number | null
+  /** Umidade volumétrica do solo 0-7 cm na hora atual (modelo, não sensor), em %. */
+  umidade0a7cmPct: number | null
+  umidade7a28cmPct: number | null
+  /** O SoilGrids ainda não respondeu para este talhão; a API busca em segundo plano. */
+  soloPendente: boolean
 }
