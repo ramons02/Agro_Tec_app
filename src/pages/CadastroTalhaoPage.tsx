@@ -6,6 +6,7 @@ import { MapaDesenhoTalhao } from '../components/MapaDesenhoTalhao'
 import { apiUpload, ApiError } from '../lib/apiClient'
 import { pontosLeafletParaPolygon } from '../lib/geo'
 import { MUNICIPIOS_PARA } from '../lib/municipiosPara'
+import { BuscaDeLocal, type Referencia } from '../components/BuscaDeLocal'
 import { useAppData } from '../store/AppDataContext'
 import type { Talhao } from '../types'
 
@@ -84,7 +85,7 @@ export function CadastroTalhaoPage() {
   const [novaPropriedadeMunicipio, setNovaPropriedadeMunicipio] = useState('')
   const [pontos, setPontos] = useState<[number, number][]>([])
   const [focoVersaoImportacao, setFocoVersaoImportacao] = useState(0)
-  const [buscaCidade, setBuscaCidade] = useState('')
+  const [referencia, setReferencia] = useState<Referencia>()
   const [irPara, setIrPara] = useState<{ centro: [number, number]; zoom: number; versao: number }>()
   const [erroImportacao, setErroImportacao] = useState<string | null>(null)
   /** Arquivo lido pelo servidor que cai fora do Pará: o polígono aparece no mapa, mas não pode ser confirmado. */
@@ -136,20 +137,6 @@ export function CadastroTalhaoPage() {
     if (municipio) return { centro: [municipio.lat, municipio.lng], zoom: 12 }
 
     return { centro: CENTRO_PADRAO, zoom: 16 }
-  }
-
-  /** Sem acento e sem diferenciar maiúsculas, para "maraba" achar "Marabá". */
-  function semAcento(texto: string) {
-    return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
-  }
-
-  function buscarCidade(valor: string) {
-    setBuscaCidade(valor)
-    const alvo = semAcento(valor)
-    const municipio = alvo ? MUNICIPIOS_PARA.find((m) => semAcento(m.nome) === alvo) : undefined
-    if (municipio) {
-      setIrPara((atual) => ({ centro: [municipio.lat, municipio.lng], zoom: 13, versao: (atual?.versao ?? 0) + 1 }))
-    }
   }
 
   async function irParaGeometria(event: FormEvent) {
@@ -437,29 +424,13 @@ export function CadastroTalhaoPage() {
               </div>
             )}
 
-            <div>
-              <label htmlFor="buscaCidade" className="mb-1.5 block text-sm font-medium text-slate-700">
-                Ir para uma cidade
-              </label>
-              <input
-                id="buscaCidade"
-                list="cidadesDoPara"
-                value={buscaCidade}
-                onChange={(e) => buscarCidade(e.target.value)}
-                placeholder="Digite a cidade, por exemplo Marabá"
-                autoComplete="off"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-              />
-              <datalist id="cidadesDoPara">
-                {MUNICIPIOS_PARA.map((m) => (
-                  <option key={m.nome} value={m.nome} />
-                ))}
-              </datalist>
-              <p className="mt-1 text-xs text-slate-500">
-                O mapa já abre na cidade da propriedade. Use este campo para ir a outra e depois arraste e dê zoom até o
-                talhão.
-              </p>
-            </div>
+            <BuscaDeLocal
+              onIrPara={(centro, zoom) =>
+                setIrPara((atual) => ({ centro, zoom, versao: (atual?.versao ?? 0) + 1 }))
+              }
+              onReferencia={setReferencia}
+              onAdicionarVertice={adicionarPonto}
+            />
 
             <div className="h-[60dvh] min-h-[18rem] overflow-hidden rounded-lg border border-slate-200 lg:h-[32rem]">
               <MapaDesenhoTalhao
@@ -469,6 +440,7 @@ export function CadastroTalhaoPage() {
                 onAdicionarPonto={adicionarPonto}
                 focoVersao={focoVersaoImportacao}
                 irPara={irPara}
+                referencia={referencia}
               />
             </div>
 
