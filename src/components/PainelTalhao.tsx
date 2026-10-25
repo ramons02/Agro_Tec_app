@@ -1,10 +1,10 @@
-import { gerarEnriquecimentoSimulado } from '../lib/enriquecimentoSimulado'
 import {
   useBalancoHidrico,
   useBalancoHidricoHistorico,
   useClimaAtual,
   usePulverizacao,
   useRecomendacao,
+  useSoloTalhao,
 } from '../lib/apiHooks'
 import type { Talhao } from '../types'
 import { BadgeStatusPlantio, BadgeStatusPulverizacao } from './ui/Badge'
@@ -24,10 +24,10 @@ export function PainelTalhao({ talhao, grupo }: PainelTalhaoProps) {
   const { dados: recomendacao } = useRecomendacao(talhao.id)
   const { dados: balancoHidrico } = useBalancoHidrico(talhao.id)
   const { dados: historicoReal } = useBalancoHidricoHistorico(talhao.id)
-  const { umidadeSolo0_7cm, capacidadeCampo } = gerarEnriquecimentoSimulado(
-    talhao.id,
-    talhao.statusPlantio,
-  )
+  const { dados: solo, carregando: carregandoSolo } = useSoloTalhao(talhao.id)
+  const semDado = carregandoSolo ? 'Carregando…' : '—'
+  const textura = solo?.tipoSolo ?? talhao.tipoSolo
+  const rotuloSemTextura = solo?.soloPendente ? 'Buscando dados do solo…' : semDado
 
   return (
     <Card className="flex flex-col overflow-hidden lg:h-full">
@@ -60,14 +60,14 @@ export function PainelTalhao({ talhao, grupo }: PainelTalhaoProps) {
           </h3>
           <dl className="grid grid-cols-2 gap-y-2 text-sm">
             <dt className="text-slate-500">Textura</dt>
-            <dd className="text-right font-medium text-slate-800">{talhao.tipoSolo ?? '—'}</dd>
-            <dt className="text-slate-500">Umidade 0-7cm (simulado)</dt>
+            <dd className="text-right font-medium text-slate-800">{textura ?? rotuloSemTextura}</dd>
+            <dt className="text-slate-500">Umidade 0-7cm (modelo Open-Meteo)</dt>
             <dd className="text-right font-medium text-slate-800">
-              {(umidadeSolo0_7cm * 100).toFixed(0)}%
+              {solo?.umidade0a7cmPct != null ? `${solo.umidade0a7cmPct.toFixed(0)}%` : semDado}
             </dd>
-            <dt className="text-slate-500">Capacidade de campo (simulado)</dt>
+            <dt className="text-slate-500">Capacidade de campo (calculada da textura)</dt>
             <dd className="text-right font-medium text-slate-800">
-              {(capacidadeCampo * 100).toFixed(0)}%
+              {solo?.capacidadeCampoPct != null ? `${solo.capacidadeCampoPct.toFixed(0)}%` : rotuloSemTextura}
             </dd>
             <dt className="text-slate-500">% da CAD (real)</dt>
             <dd className="text-right font-medium text-slate-800">

@@ -17,7 +17,7 @@ interface GraficoUmidadeProps {
   statusAtual: StatusPlantio
   variante?: 'compacta' | 'detalhada'
   /** Texto após o percentual no tooltip — o gráfico é genérico (qualquer série 0-1 no
-   * tempo), usado tanto pra umidade simulada quanto pro % da CAD real. */
+   * tempo), usado pro % da CAD real. */
   rotuloTooltip?: string
 }
 

@@ -11,6 +11,7 @@ import type {
   ResumoUsuarios,
   StatusConta,
   RecomendacaoResultado,
+  SoloTalhao,
 } from '../types'
 
 interface EstadoConsulta<T> {
@@ -217,6 +218,53 @@ export function useBalancoHidrico(talhaoId: string | null): EstadoConsulta<Balan
         const mensagem =
           erro instanceof ApiError && erro.codigo === 404 ? null : 'Falha ao buscar balanço hídrico.'
         setEstado({ dados: null, carregando: false, erro: mensagem })
+      })
+
+    return () => {
+      cancelado = true
+    }
+  }, [talhaoId])
+
+  return estado
+}
+
+interface SoloTalhaoApi {
+  tipo_solo: SoloTalhao['tipoSolo']
+  capacidade_agua_disponivel_mm: number | null
+  capacidade_campo_pct: number | null
+  umidade_0_7cm_pct: number | null
+  umidade_7_28cm_pct: number | null
+  solo_pendente: boolean
+}
+
+/** Solo real do talhão (textura/CAD do SoilGrids e umidade do Open-Meteo). */
+export function useSoloTalhao(talhaoId: string | null): EstadoConsulta<SoloTalhao> {
+  const [estado, setEstado] = useState<EstadoConsulta<SoloTalhao>>({ dados: null, carregando: false, erro: null })
+
+  useEffect(() => {
+    if (!talhaoId) return
+    let cancelado = false
+    setEstado({ dados: null, carregando: true, erro: null })
+
+    apiGet<SoloTalhaoApi>(`/api/v1/talhoes/${talhaoId}/solo`)
+      .then((resposta) => {
+        if (cancelado) return
+        setEstado({
+          dados: {
+            tipoSolo: resposta.tipo_solo,
+            capacidadeAguaDisponivelMm: resposta.capacidade_agua_disponivel_mm,
+            capacidadeCampoPct: resposta.capacidade_campo_pct,
+            umidade0a7cmPct: resposta.umidade_0_7cm_pct,
+            umidade7a28cmPct: resposta.umidade_7_28cm_pct,
+            soloPendente: resposta.solo_pendente,
+          },
+          carregando: false,
+          erro: null,
+        })
+      })
+      .catch(() => {
+        if (cancelado) return
+        setEstado({ dados: null, carregando: false, erro: 'Falha ao buscar o solo.' })
       })
 
     return () => {
