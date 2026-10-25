@@ -9,6 +9,8 @@ import { NovoLinkDialog } from '../components/usuarios/NovoLinkDialog'
 import { NovoUsuarioDialog } from '../components/usuarios/NovoUsuarioDialog'
 import { SuspenderDialog } from '../components/usuarios/SuspenderDialog'
 import { Button } from '../components/ui/Button'
+import { BotaoIcone } from '../components/ui/BotaoIcone'
+import { CartaoDeLinha } from '../components/ui/CartaoDeLinha'
 import { Card, CardBody, CardHeader } from '../components/ui/Card'
 import {
   confirmarUsuario,
@@ -221,6 +223,92 @@ function PainelUsuarios() {
     })
   }
 
+  function acoesDoUsuario(u: UsuarioListado) {
+    return (
+      <>
+        {souMaster && u.status !== 'PENDENTE' && (u.papel === 'PRODUTOR_RURAL' || u.papel === 'AGRONOMO') && (
+          <BotaoIcone
+            rotulo="Mover para outro grupo"
+            disabled={executando || grupos.length < 2}
+            title={grupos.length < 2 ? 'É preciso ter outro grupo de destino.' : 'Mover para outro grupo'}
+            onClick={() => abrir({ tipo: 'mover', usuario: u })}
+          >
+            <path d="m17 3 4 4-4 4" />
+            <path d="M3 7h18" />
+            <path d="m7 21-4-4 4-4" />
+            <path d="M21 17H3" />
+          </BotaoIcone>
+        )}
+        {!souMaster && u.papel === 'AGRONOMO' && u.status !== 'PENDENTE' && grupos.length > 0 && (
+          <BotaoIcone
+            rotulo="Remover do grupo"
+            disabled={executando}
+            onClick={() => abrir({ tipo: 'removerGrupo', usuario: u })}
+          >
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M17 11h6" />
+          </BotaoIcone>
+        )}
+        {u.status !== 'PENDENTE' && (
+          <>
+            <BotaoIcone rotulo="Editar" disabled={executando} onClick={() => abrir({ tipo: 'editar', usuario: u })}>
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </BotaoIcone>
+            <BotaoIcone
+              rotulo="Redefinir senha"
+              destaque={!!u.senhaEsquecidaEm}
+              disabled={executando}
+              onClick={() => abrir({ tipo: 'redefinir', usuario: u })}
+            >
+              <circle cx="7.5" cy="15.5" r="4.5" />
+              <path d="m10.7 12.3 9.8-9.8" />
+              <path d="m16 7 3 3" />
+            </BotaoIcone>
+          </>
+        )}
+        {u.status === 'ATIVA' && (
+          <BotaoIcone
+            rotulo="Suspender"
+            disabled={executando || u.id === meuId}
+            title={u.id === meuId ? 'Você não pode suspender a própria conta.' : 'Suspender'}
+            onClick={() => setAcao({ tipo: 'suspender', usuario: u })}
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M10 15V9M14 15V9" />
+          </BotaoIcone>
+        )}
+        {u.status === 'SUSPENSA' && (
+          <BotaoIcone rotulo="Reativar" disabled={executando} onClick={() => setAcao({ tipo: 'reativar', usuario: u })}>
+            <circle cx="12" cy="12" r="10" />
+            <path d="m10 8 6 4-6 4Z" />
+          </BotaoIcone>
+        )}
+        {u.status === 'PENDENTE' && (
+          <>
+            <BotaoIcone
+              rotulo="Confirmar cadastro"
+              destaque
+              disabled={executando}
+              onClick={() => (souMaster && semGrupo(u) ? abrir({ tipo: 'confirmarComGrupo', usuario: u }) : confirmar(u))}
+            >
+              <path d="M20 6 9 17l-5-5" />
+            </BotaoIcone>
+            <BotaoIcone
+              rotulo="Recusar cadastro"
+              perigo
+              disabled={executando}
+              onClick={() => setAcao({ tipo: 'recusar', usuario: u })}
+            >
+              <path d="M18 6 6 18M6 6l12 12" />
+            </BotaoIcone>
+          </>
+        )}
+      </>
+    )
+  }
+
   const total = lista?.total ?? 0
   const primeiro = total === 0 ? 0 : (pagina - 1) * TAMANHO_PAGINA_USUARIOS + 1
   const ultimo = Math.min(pagina * TAMANHO_PAGINA_USUARIOS, total)
@@ -335,7 +423,52 @@ function PainelUsuarios() {
           </div>
         </CardHeader>
 
-        <div className="overflow-x-auto">
+        <ul className="space-y-3 p-4 md:hidden">
+          {lista?.itens.map((u) => (
+            <CartaoDeLinha
+              key={u.id}
+              titulo={
+                <button
+                  onClick={() => abrir({ tipo: 'detalhe', usuario: u })}
+                  className="text-left hover:text-emerald-700 hover:underline"
+                  title="Ver o histórico desta conta"
+                >
+                  {u.nome ?? '-'}
+                </button>
+              }
+              subtitulo={u.email}
+              selo={
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_ESTILO[u.status]}`}
+                >
+                  {STATUS_ROTULO[u.status]}
+                </span>
+              }
+              campos={[
+                { rotulo: 'Papel', valor: PAPEL_ROTULO[u.papel] },
+                ...(souMaster
+                  ? [
+                      {
+                        rotulo: 'Grupo',
+                        valor:
+                          u.papel === 'AGRONOMO'
+                            ? u.grupos.map((g) => g.nome).join(', ') || '-'
+                            : (u.grupo?.nome ?? '-'),
+                      },
+                    ]
+                  : []),
+                { rotulo: 'Propriedades', valor: u.propriedades },
+                { rotulo: 'Telegram', valor: u.telegramVinculado ? 'Vinculado' : '-' },
+                { rotulo: 'Cadastro', valor: formatarData(u.criadoEm) },
+                ...(u.senhaEsquecidaEm
+                  ? [{ rotulo: 'Senha', valor: `Pediu nova senha em ${formatarData(u.senhaEsquecidaEm)}` }]
+                  : []),
+              ]}
+              acoes={<div className="flex w-full flex-wrap justify-end gap-1">{acoesDoUsuario(u)}</div>}
+            />
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
               <tr>
@@ -396,85 +529,7 @@ function PainelUsuarios() {
                   <td className="px-5 py-3 text-slate-600">{u.telegramVinculado ? 'Vinculado' : '-'}</td>
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(u.criadoEm)}</td>
                   <td className="px-5 py-3 text-right">
-                    <div className="flex flex-wrap justify-end gap-2">
-                    {souMaster && u.status !== 'PENDENTE' && (u.papel === 'PRODUTOR_RURAL' || u.papel === 'AGRONOMO') && (
-                      <Button
-                        variant="ghost"
-                        className="px-3 py-1.5"
-                        disabled={executando || grupos.length < 2}
-                        title={grupos.length < 2 ? 'É preciso ter outro grupo de destino.' : undefined}
-                        onClick={() => abrir({ tipo: 'mover', usuario: u })}
-                      >
-                        Mover
-                      </Button>
-                    )}
-                    {!souMaster && u.papel === 'AGRONOMO' && u.status !== 'PENDENTE' && grupos.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        className="px-3 py-1.5"
-                        disabled={executando}
-                        onClick={() => abrir({ tipo: 'removerGrupo', usuario: u })}
-                      >
-                        Remover do grupo
-                      </Button>
-                    )}
-                    {u.status !== 'PENDENTE' && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          className="px-3 py-1.5"
-                          disabled={executando}
-                          onClick={() => abrir({ tipo: 'editar', usuario: u })}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant={u.senhaEsquecidaEm ? 'primary' : 'ghost'}
-                          className="px-3 py-1.5"
-                          disabled={executando}
-                          onClick={() => abrir({ tipo: 'redefinir', usuario: u })}
-                        >
-                          Redefinir senha
-                        </Button>
-                      </>
-                    )}
-                    {u.status === 'ATIVA' && (
-                      <Button
-                        variant="secondary"
-                        className="px-3 py-1.5"
-                        disabled={executando || u.id === meuId}
-                        title={u.id === meuId ? 'Você não pode suspender a própria conta.' : undefined}
-                        onClick={() => setAcao({ tipo: 'suspender', usuario: u })}
-                      >
-                        Suspender
-                      </Button>
-                    )}
-                    {u.status === 'SUSPENSA' && (
-                      <Button
-                        variant="secondary"
-                        className="px-3 py-1.5"
-                        disabled={executando}
-                        onClick={() => setAcao({ tipo: 'reativar', usuario: u })}
-                      >
-                        Reativar
-                      </Button>
-                    )}
-                    {u.status === 'PENDENTE' && (
-                      <>
-                        <Button className="px-3 py-1.5" disabled={executando} onClick={() => (souMaster && semGrupo(u) ? abrir({ tipo: 'confirmarComGrupo', usuario: u }) : confirmar(u))}>
-                          Confirmar
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          className="px-3 py-1.5"
-                          disabled={executando}
-                          onClick={() => setAcao({ tipo: 'recusar', usuario: u })}
-                        >
-                          Recusar
-                        </Button>
-                      </>
-                    )}
-                    </div>
+                    <div className="flex flex-wrap justify-end gap-1">{acoesDoUsuario(u)}</div>
                   </td>
                 </tr>
               ))}
