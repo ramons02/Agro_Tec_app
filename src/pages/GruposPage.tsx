@@ -4,6 +4,7 @@ import { ConfirmacaoDialog } from '../components/usuarios/ConfirmacaoDialog'
 import { NovoLinkDialog } from '../components/usuarios/NovoLinkDialog'
 import { SenhaTemporariaDialog } from '../components/usuarios/SenhaTemporariaDialog'
 import { Button } from '../components/ui/Button'
+import { BotaoIcone } from '../components/ui/BotaoIcone'
 import { Card } from '../components/ui/Card'
 import { convidarMaster, criarGrupo, listarGrupos, reatribuirGrupo, type ItemGrupo } from '../lib/acoesGrupos'
 import { ApiError } from '../lib/apiClient'
@@ -110,18 +111,23 @@ function PainelGrupos() {
                   <td className="px-5 py-3 text-right text-slate-700">{g.usuarios}</td>
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(g.criadoEm)}</td>
                   <td className="px-5 py-3 text-right">
-                    <Button variant="ghost" className="px-3 py-1.5" onClick={() => setGerandoLink(g)}>
-                      Link de cadastro
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="px-3 py-1.5"
+                    <BotaoIcone rotulo="Link de cadastro" onClick={() => setGerandoLink(g)}>
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </BotaoIcone>
+                    <BotaoIcone
+                      rotulo="Passar para outro Admin"
                       disabled={(grupos?.length ?? 0) < 2}
-                      title={(grupos?.length ?? 0) < 2 ? 'É preciso ter outro grupo de destino.' : undefined}
+                      title={
+                        (grupos?.length ?? 0) < 2 ? 'É preciso ter outro grupo de destino.' : 'Passar para outro Admin'
+                      }
                       onClick={() => { setErroDialogo(null); setReatribuindo(g) }}
                     >
-                      Passar para outro Admin
-                    </Button>
+                      <path d="m17 3 4 4-4 4" />
+                      <path d="M3 7h18" />
+                      <path d="m7 21-4-4 4-4" />
+                      <path d="M21 17H3" />
+                    </BotaoIcone>
                   </td>
                 </tr>
               ))}
