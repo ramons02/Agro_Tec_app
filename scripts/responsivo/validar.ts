@@ -61,7 +61,8 @@ const MEDIR = `(() => {
     // Exceções combinadas na spec (FR-014): atribuição legal do mapa e link dentro de uma frase de texto.
     .filter((el) => !el.closest('.leaflet-control-attribution'))
     .filter((el) => !(el.tagName === 'A' && el.parentElement && [...el.parentElement.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() !== '')))
-    .map((el) => ({ el, r: el.getBoundingClientRect() }))
+    // Caixa de marcar e botão de rádio: o alvo de toque é o rótulo que os envolve, não o quadradinho.
+    .map((el) => ({ el, r: (/^(checkbox|radio)$/.test(el.type || '') && el.closest('label') ? el.closest('label') : el).getBoundingClientRect() }))
     .filter(({ r }) => toque && (r.width < 43.5 || r.height < 43.5))
     .map(({ el, r }) => descreve(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height))
   // O app rola dentro do <main>, não no documento: conteúdo largo demais ali não aparece em scrollWidth do documento.
