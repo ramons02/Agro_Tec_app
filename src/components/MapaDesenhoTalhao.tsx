@@ -20,6 +20,8 @@ interface MapaDesenhoTalhaoProps {
   /** Incrementa a cada importação de arquivo, para o mapa recentralizar no polígono
    * importado — sem isso, um GeoJSON de outra área do talhão fica fora da tela. */
   focoVersao?: number
+  /** Pedido de ir a um lugar (busca de cidade): a cada `versao` nova o mapa voa até o centro, no zoom dado. */
+  irPara?: { centro: [number, number]; zoom: number; versao: number }
 }
 
 function CapturaCliques({ onClick }: { onClick: (ponto: [number, number]) => void }) {
@@ -50,12 +52,24 @@ function FocoNaImportacao({
   return null
 }
 
+function VoarParaLugar({ irPara }: { irPara?: { centro: [number, number]; zoom: number; versao: number } }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (irPara && irPara.versao > 0) map.flyTo(irPara.centro, irPara.zoom, { duration: 1.2 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [irPara?.versao])
+
+  return null
+}
+
 export function MapaDesenhoTalhao({
   center,
   zoom = 16,
   pontos,
   onAdicionarPonto,
   focoVersao = 0,
+  irPara,
 }: MapaDesenhoTalhaoProps) {
   return (
     <MapContainer center={center} zoom={zoom} maxZoom={19} className="h-full w-full">
@@ -67,6 +81,7 @@ export function MapaDesenhoTalhao({
 
       <CapturaCliques onClick={onAdicionarPonto} />
       <FocoNaImportacao pontos={pontos} focoVersao={focoVersao} />
+      <VoarParaLugar irPara={irPara} />
 
       {pontos.length >= 3 ? (
         <Polygon
