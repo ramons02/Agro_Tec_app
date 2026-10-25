@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { apiPost, CHAVE_AVISO_LOGIN, definirToken, EVENTO_CONTA_SUSPENSA, obterToken } from '../lib/apiClient'
+import { limparCacheDados, limparCacheDeOutrosUsuarios } from '../lib/indexedDb'
+import { usuarioIdDoToken } from '../lib/sessao'
 import type { Papel } from '../types'
 
 const CHAVE_PAPEL = 'agroclima:papel'
@@ -55,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       localStorage.removeItem(CHAVE_PAPEL)
       localStorage.removeItem(CHAVE_TROCA_SENHA)
+      void limparCacheDados()
       setToken(null)
       setPapel(null)
       setPrecisaTrocarSenha(false)
@@ -71,6 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       entrar: async (email: string, senha: string) => {
         const dados = await apiPost<LoginResponse>('/api/v1/auth/login', { email, senha })
         definirToken(dados.token)
+        // Entrou outro usuário no aparelho: nada do que ficou guardado de outras contas pode servir a ele.
+        const usuarioId = usuarioIdDoToken(dados.token)
+        if (usuarioId) void limparCacheDeOutrosUsuarios(usuarioId)
         localStorage.setItem(CHAVE_PAPEL, dados.papel)
         const trocar = dados.precisa_trocar_senha === true
         if (trocar) localStorage.setItem(CHAVE_TROCA_SENHA, '1')
@@ -103,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       sair: () => {
         definirToken(null)
+        void limparCacheDados()
         localStorage.removeItem(CHAVE_PAPEL)
         localStorage.removeItem(CHAVE_TROCA_SENHA)
         setToken(null)
