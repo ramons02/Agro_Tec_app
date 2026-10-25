@@ -314,7 +314,7 @@ export function CadastroTalhaoPage() {
                 >
                   {propriedadesFiltradas.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.municipio ? `${p.nome} — ${p.municipio}` : p.nome}
+                      {p.municipio ? `${p.nome}, ${p.municipio}` : p.nome}
                     </option>
                   ))}
                   <option value={NOVA_PROPRIEDADE}>+ Cadastrar nova propriedade</option>
@@ -538,7 +538,7 @@ export function CadastroTalhaoPage() {
                       Solo não parametrizado automaticamente
                     </p>
                     <p className="text-xs text-amber-700">
-                      A fonte de dados de solo (SoilGrids) não respondeu para essa coordenada —
+                      A fonte de dados de solo (SoilGrids) não respondeu para essa coordenada:
                       o talhão foi cadastrado mesmo assim, sem bloqueio (FR-006).
                     </p>
                   </div>
@@ -553,7 +553,7 @@ export function CadastroTalhaoPage() {
                     <dd className="font-semibold text-slate-800">
                       {talhaoCriado.capacidadeAguaDisponivelMm !== null
                         ? `${talhaoCriado.capacidadeAguaDisponivelMm.toFixed(1)} mm`
-                        : '—'}
+                        : '-'}
                     </dd>
                   </div>
                 </dl>

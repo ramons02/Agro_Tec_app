@@ -133,7 +133,7 @@ export function MenuUsuario({ iniciais, rotuloPapel, podeTrocarSenha, onTrocarSe
                       ? 'Todos os grupos'
                       : perfil.grupos.length > 0
                         ? perfil.grupos.join(', ')
-                        : '—'}
+                        : '-'}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">

@@ -165,15 +165,15 @@ function CardTalhaoPlantio({ talhao, propriedade }: { talhao: Talhao; propriedad
           <dt className="text-slate-500">Área</dt>
           <dd className="text-right font-medium text-slate-800">{talhao.areaHa.toFixed(1)} ha</dd>
           <dt className="text-slate-500">Solo</dt>
-          <dd className="text-right font-medium text-slate-800">{talhao.tipoSolo ?? '—'}</dd>
+          <dd className="text-right font-medium text-slate-800">{talhao.tipoSolo ?? '-'}</dd>
           <dt className="text-slate-500">% da CAD</dt>
           <dd className="text-right font-medium text-slate-800">
-            {talhao.percentualCad !== null ? `${talhao.percentualCad.toFixed(0)}%` : '—'}
+            {talhao.percentualCad !== null ? `${talhao.percentualCad.toFixed(0)}%` : '-'}
           </dd>
         </dl>
 
         <div className="border-t border-slate-100 pt-2">
-          <p className="mb-1 text-xs text-slate-400">% da CAD — últimos dias (real)</p>
+          <p className="mb-1 text-xs text-slate-400">% da CAD, últimos dias (real)</p>
           {historicoReal && historicoReal.length > 0 ? (
             <GraficoUmidade
               historico={historicoReal}

@@ -25,7 +25,7 @@ export function PainelTalhao({ talhao, grupo }: PainelTalhaoProps) {
   const { dados: balancoHidrico } = useBalancoHidrico(talhao.id)
   const { dados: historicoReal } = useBalancoHidricoHistorico(talhao.id)
   const { dados: solo, carregando: carregandoSolo } = useSoloTalhao(talhao.id)
-  const semDado = carregandoSolo ? 'Carregando…' : '—'
+  const semDado = carregandoSolo ? 'Carregando…' : '-'
   const textura = solo?.tipoSolo ?? talhao.tipoSolo
   const rotuloSemTextura = solo?.soloPendente ? 'Buscando dados do solo…' : semDado
 
@@ -71,7 +71,7 @@ export function PainelTalhao({ talhao, grupo }: PainelTalhaoProps) {
             </dd>
             <dt className="text-slate-500">% da CAD (real)</dt>
             <dd className="text-right font-medium text-slate-800">
-              {talhao.percentualCad !== null ? `${talhao.percentualCad.toFixed(0)}%` : '—'}
+              {talhao.percentualCad !== null ? `${talhao.percentualCad.toFixed(0)}%` : '-'}
             </dd>
           </dl>
         </section>
@@ -102,7 +102,7 @@ export function PainelTalhao({ talhao, grupo }: PainelTalhaoProps) {
 
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            % da CAD — últimos dias (real)
+            % da CAD, últimos dias (real)
           </h3>
           {historicoReal && historicoReal.length > 0 ? (
             <GraficoUmidade
@@ -128,15 +128,15 @@ export function PainelTalhao({ talhao, grupo }: PainelTalhaoProps) {
               <dl className="grid grid-cols-2 gap-y-1 text-sm">
                 <dt className="text-slate-500">Vento</dt>
                 <dd className="text-right font-medium text-slate-800">
-                  {pulverizacao.ventoKmh !== null ? `${pulverizacao.ventoKmh.toFixed(1)} km/h` : '—'}
+                  {pulverizacao.ventoKmh !== null ? `${pulverizacao.ventoKmh.toFixed(1)} km/h` : '-'}
                 </dd>
                 <dt className="text-slate-500">Rajada</dt>
                 <dd className="text-right font-medium text-slate-800">
-                  {pulverizacao.rajadaKmh !== null ? `${pulverizacao.rajadaKmh.toFixed(1)} km/h` : '—'}
+                  {pulverizacao.rajadaKmh !== null ? `${pulverizacao.rajadaKmh.toFixed(1)} km/h` : '-'}
                 </dd>
                 <dt className="text-slate-500">Delta T</dt>
                 <dd className="text-right font-medium text-slate-800">
-                  {pulverizacao.deltaTC !== null ? `${pulverizacao.deltaTC.toFixed(1)} °C` : '—'}
+                  {pulverizacao.deltaTC !== null ? `${pulverizacao.deltaTC.toFixed(1)} °C` : '-'}
                 </dd>
               </dl>
             </div>

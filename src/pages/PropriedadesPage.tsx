@@ -166,7 +166,7 @@ export function PropriedadesPage() {
                               {talhao.areaHa.toFixed(1)} ha
                             </td>
                             <td className="px-5 py-3 text-slate-600">
-                              {talhao.tipoSolo ?? '—'}
+                              {talhao.tipoSolo ?? '-'}
                             </td>
                             <td className="px-5 py-3">
                               {talhao.statusPlantio ? (

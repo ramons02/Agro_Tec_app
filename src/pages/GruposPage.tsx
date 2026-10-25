@@ -105,7 +105,7 @@ function PainelGrupos() {
                 <tr key={g.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-medium text-slate-800">{g.nome}</td>
                   <td className="px-5 py-3 text-slate-600">
-                    {g.admin ? `${g.admin.nome ?? '—'} · ${g.admin.email}` : '—'}
+                    {g.admin ? `${g.admin.nome ?? '-'} · ${g.admin.email}` : '-'}
                   </td>
                   <td className="px-5 py-3 text-right text-slate-700">{g.usuarios}</td>
                   <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatarData(g.criadoEm)}</td>

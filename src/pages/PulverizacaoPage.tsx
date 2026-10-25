@@ -75,15 +75,15 @@ function CardPulverizacaoTalhao({ talhao }: { talhao: Talhao }) {
           <dl className="grid grid-cols-2 gap-y-2 text-sm">
             <dt className="text-slate-500">Vento</dt>
             <dd className="text-right font-medium text-slate-800">
-              {dados.ventoKmh !== null ? `${dados.ventoKmh.toFixed(1)} km/h` : '—'}
+              {dados.ventoKmh !== null ? `${dados.ventoKmh.toFixed(1)} km/h` : '-'}
             </dd>
             <dt className="text-slate-500">Rajada</dt>
             <dd className="text-right font-medium text-slate-800">
-              {dados.rajadaKmh !== null ? `${dados.rajadaKmh.toFixed(1)} km/h` : '—'}
+              {dados.rajadaKmh !== null ? `${dados.rajadaKmh.toFixed(1)} km/h` : '-'}
             </dd>
             <dt className="text-slate-500">Delta T</dt>
             <dd className="text-right font-medium text-slate-800">
-              {dados.deltaTC !== null ? `${dados.deltaTC.toFixed(1)} °C` : '—'}
+              {dados.deltaTC !== null ? `${dados.deltaTC.toFixed(1)} °C` : '-'}
             </dd>
           </dl>
         )}
