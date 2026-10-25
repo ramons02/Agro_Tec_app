@@ -1,31 +1,54 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { FiltroDeGrupo } from '../components/FiltroDeGrupo'
 import { MapaTalhoes } from '../components/MapaTalhoes'
 import { PainelTalhao } from '../components/PainelTalhao'
+import { gruposDasPropriedades, propriedadeNoGrupo, TODOS_OS_GRUPOS } from '../lib/grupos'
+import { ehMaster } from '../lib/papeis'
 import { useAppData } from '../store/AppDataContext'
+import { useAuth } from '../store/AuthContext'
 
 export function MapaPage() {
-  const { talhoes, carregando, erro } = useAppData()
+  const { talhoes: todosOsTalhoes, propriedades, carregando, erro } = useAppData()
+  const { papel } = useAuth()
+  const master = ehMaster(papel)
   const location = useLocation()
   const talhaoIdFocado = (location.state as { talhaoId?: string } | null)?.talhaoId
 
   const [talhaoSelecionadoId, setTalhaoSelecionadoId] = useState<string | undefined>(talhaoIdFocado)
+  // O Master enxerga todos os grupos juntos: o filtro deixa ver um cliente por vez (só ele recebe esse controle).
+  const [grupoFiltro, setGrupoFiltro] = useState(TODOS_OS_GRUPOS)
+  const grupos = useMemo(() => gruposDasPropriedades(propriedades), [propriedades])
+  const propriedadePorId = useMemo(() => new Map(propriedades.map((p) => [p.id, p])), [propriedades])
+  const talhoes = master
+    ? todosOsTalhoes.filter((t) => propriedadeNoGrupo(propriedadePorId.get(t.propriedadeId), grupoFiltro))
+    : todosOsTalhoes
   const talhaoSelecionado =
     talhoes.find((t) => t.id === talhaoSelecionadoId) ?? talhoes[0] ?? null
+  const haSemGrupo = propriedades.some((p) => !p.grupo)
+  const filtro =
+    master && (grupos.length > 1 || (grupos.length > 0 && haSemGrupo)) ? (
+      <FiltroDeGrupo grupos={grupos} valor={grupoFiltro} aoMudar={setGrupoFiltro} haSemGrupo={haSemGrupo} />
+    ) : null
 
   if (erro) {
     return <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
   }
 
-  if (carregando && talhoes.length === 0) {
+  if (carregando && todosOsTalhoes.length === 0) {
     return <p className="text-sm text-slate-400">Carregando talhões…</p>
   }
 
   if (!talhaoSelecionado) {
     return (
-      <p className="text-sm text-slate-400">
-        Nenhum talhão cadastrado ainda — cadastre um para ver o mapa.
-      </p>
+      <div className="space-y-3">
+        {filtro}
+        <p className="text-sm text-slate-400">
+          {todosOsTalhoes.length > 0
+            ? 'Nenhum talhão neste grupo.'
+            : 'Nenhum talhão cadastrado ainda — cadastre um para ver o mapa.'}
+        </p>
+      </div>
     )
   }
 
@@ -37,6 +60,7 @@ export function MapaPage() {
           Visualize os seus talhões. Clique num talhão para ver o clima, o balanço hídrico e
           a janela de pulverização.
         </p>
+        {filtro && <div className="mt-3">{filtro}</div>}
       </div>
 
       {/* Abaixo de 1024 px o painel fica embaixo do mapa e a página rola; a partir de 1024 px, ao lado, como antes. */}
@@ -49,7 +73,10 @@ export function MapaPage() {
           />
         </div>
 
-        <PainelTalhao talhao={talhaoSelecionado} />
+        <PainelTalhao
+          talhao={talhaoSelecionado}
+          grupo={master ? (propriedadePorId.get(talhaoSelecionado.propriedadeId)?.grupo?.nome ?? null) : undefined}
+        />
       </div>
     </div>
   )
