@@ -76,3 +76,13 @@ export async function desligarAvisosAoSair(): Promise<void> {
     // Sem rede ou sem suporte: a assinatura some do servidor quando o aparelho for reaproveitado por outra conta.
   }
 }
+
+/** Pede à API uma notificação de teste para os aparelhos desta conta. Devolve em quantos o serviço de push a aceitou. */
+export async function enviarAvisoDeTeste(): Promise<number> {
+  try {
+    const r = await apiPost<{ enviados: number }>('/api/v1/push/testar')
+    return r.enviados
+  } catch (e) {
+    throw e instanceof Error ? e : new Error('Não consegui enviar o teste.')
+  }
+}
